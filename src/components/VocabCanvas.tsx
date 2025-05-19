@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface VocabCanvasProps {
   content: string;
@@ -46,9 +46,41 @@ function tokenizeContent(content: string): Token[] {
 export default function VocabCanvas({ content, showInstructions, setShowInstructions }: VocabCanvasProps) {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [flashState, setFlashState] = useState<FlashType>('none');
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [translation, setTranslation] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [debugString, setDebugString] = useState("");
+  const currentWordRef = useRef<HTMLSpanElement>(null);
   const tokens = tokenizeContent(content);
   const words = tokens.filter(token => token.isWord);
   const wordCount = words.length;
+
+  const handleTranslation = async (word: string) => {
+    setIsTranslating(true);
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: word,
+          mode: 'toEnglish'
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Translation failed');
+      }
+      setTranslation(data.result);
+      setShowTranslation(true);
+    } catch (error) {
+      console.error('Translation error:', error);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   useEffect(() => {
     const handleKeyPress = async (event: KeyboardEvent) => {
@@ -56,27 +88,50 @@ export default function VocabCanvas({ content, showInstructions, setShowInstruct
         setShowInstructions(false);
       }
 
-      if ((event.code === 'KeyE' || event.code === 'KeyQ') && currentWordIndex < wordCount - 1) {
+      if (event.code === 'KeyE' && currentWordIndex < wordCount - 1) {
         event.preventDefault();
         
         const currentWord = words[currentWordIndex]?.text.toLowerCase();
-
         if (currentWord) {
-          updateWordStats(currentWord, event.code === 'KeyE');
+          updateWordStats(currentWord, true);
         }
 
-        setFlashState(event.code === 'KeyE' ? 'green' : 'red');
+        setFlashState('green');
+        setShowTranslation(false);
         
         setTimeout(() => {
           setFlashState('none');
           setCurrentWordIndex(prev => prev + 1);
         }, 100);
+      } else if (event.code === 'KeyQ' && currentWordIndex < wordCount - 1) {
+        event.preventDefault();
+        
+        const currentWord = words[currentWordIndex]?.text.toLowerCase();
+        
+        if (!showTranslation) {
+          // First Q press - show translation
+          if (currentWord) {
+            setFlashState('red');
+            await handleTranslation(currentWord);
+          }
+        } else {
+          // Second Q press - proceed to next word
+          if (currentWord) {
+            updateWordStats(currentWord, false);
+          }
+          setShowTranslation(false);
+          
+          setTimeout(() => {
+            setFlashState('none');
+            setCurrentWordIndex(prev => prev + 1);
+          }, 100);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentWordIndex, wordCount, words, showInstructions]);
+  }, [currentWordIndex, wordCount, words, showInstructions, showTranslation]);  
 
   if (!content) return null;
 
@@ -96,10 +151,12 @@ export default function VocabCanvas({ content, showInstructions, setShowInstruct
         <div className="mt-4">
           {tokens.map((token, index) => {
             let className = 'transition-all duration-200 ';
-            
+            let isCurrentWord = false;
+
             if (token.isWord) {
               if (currentWordCounter === currentWordIndex) {
-                className += 'inline-block transform ';
+                isCurrentWord = true;
+                className += 'inline-block transform relative ';
                 if (flashState === 'green') {
                   className += 'bg-green-400 text-white px-1 rounded scale-110 ';
                 } else if (flashState === 'red') {
@@ -110,20 +167,51 @@ export default function VocabCanvas({ content, showInstructions, setShowInstruct
               } else if (currentWordCounter < currentWordIndex) {
                 className += 'text-gray-400 ';
               }
+              // Increment after ref assignment
+              const span = (
+                <span
+                  key={index}
+                  ref={isCurrentWord ? currentWordRef : null}
+                  className={className}
+                >
+                  {token.text}
+                  {isCurrentWord && showTranslation && (
+                    <div
+                      className="absolute z-50"
+                      style={{
+                        top: '-35px',
+                        left: '50%',
+                        transform: 'translateX(-50%)'
+                      }}
+                    >
+                      <div
+                        className="bg-yellow-100 shadow-lg px-3 py-2 rotate-1 border-t-4 border-yellow-200"
+                        style={{
+                          whiteSpace: 'nowrap',
+                          textAlign: 'center',
+                          transform: 'rotate(-12deg)',
+                          boxShadow: '2px 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        <p className="text-sm text-gray-700 font-handwriting">
+                          {isTranslating ? 'Translating...' : translation}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </span>
+              );
               currentWordCounter++;
+              return span;
             }
-            
+            // For non-word tokens
             return (
-              <span
-                key={index}
-                className={className}
-              >
-                {token.text}
-              </span>
+              <span key={index} className={className}>{token.text}</span>
             );
           })}
         </div>
-        <div className="absolute bottom-2 left-2 right-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+        
+        <div className="mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
           <div 
             className="h-full bg-blue-500 transition-all duration-300"
             style={{ width: `${(currentWordIndex / (wordCount - 1)) * 100}%` }}
