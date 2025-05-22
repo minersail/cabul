@@ -9,23 +9,31 @@ interface WordData {
   percentage: number;
 }
 
-export default function VocabStats() {
+const rawStatsToWordData = (wordStats: Record<string, [number, number]>): WordData[] => {
+  return Object.entries(wordStats).map(([word, [total, correct]]) => ({
+    word,
+    total,
+    correct,
+    percentage: Math.round((correct / total) * 100)
+  }));
+};
+
+export default function VocabStats({ wordStats }: { wordStats: Record<string, [number, number]> }) {
   const [stats, setStats] = useState<WordData[]>([]);
   const [sortBy, setSortBy] = useState<'word' | 'total' | 'percentage'>('total');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  const handleClearStats = () => {
+    localStorage.removeItem('vocabStats');
+    setStats([]);
+  }
 
   useEffect(() => {
-    // Get stats from localStorage
-    const rawStats = localStorage.getItem('vocabStats');
-    if (!rawStats) return;
+    setStats(rawStatsToWordData(wordStats));
+  }, [wordStats]);
 
-    const parsedStats: Record<string, [number, number]> = JSON.parse(rawStats);
-    const processedStats: WordData[] = Object.entries(parsedStats).map(([word, [total, correct]]) => ({
-      word,
-      total,
-      correct,
-      percentage: Math.round((correct / total) * 100)
-    }));
+  useEffect(() => {
+    const processedStats: WordData[] = rawStatsToWordData(wordStats);
 
     // Sort stats
     const sortedStats = processedStats.sort((a, b) => {
@@ -62,7 +70,10 @@ export default function VocabStats() {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4">Vocabulary Statistics</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Vocabulary Statistics</h2>
+        <button onClick={handleClearStats} className="text-red-500 hover:text-red-700 text-sm underline">Clear Stats</button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

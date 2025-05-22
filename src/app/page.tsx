@@ -62,8 +62,6 @@ export default async function Home() {
         </header>
 
         <ArticleLoader posts={posts} />
-        
-        <VocabStats />
       </div>
     </div>
   );

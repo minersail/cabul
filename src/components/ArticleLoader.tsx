@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import VocabCanvas from "./VocabCanvas";
-
+import VocabStats from "./VocabStats";
 interface RedditPost {
   title: string;
   content: string;
@@ -15,13 +15,33 @@ interface ArticleLoaderProps {
   posts: RedditPost[];
 }
 
+// Type for our word stats
+type WordStats = [number, number]; // [total encounters, correct attempts]
+
+// Helper function to get word stats from localStorage
+function getWordStats(): Record<string, WordStats> {
+  if (typeof window === 'undefined') return {};
+  const stats = localStorage.getItem('vocabStats');
+  return stats ? JSON.parse(stats) : {};
+}
+
 export default function ArticleLoader({ posts }: ArticleLoaderProps) {
   const [currentPostIndex, setCurrentPostIndex] = useState(0);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [wordStats, setWordStats] = useState<Record<string, WordStats>>(getWordStats());
 
   const handleNextArticle = () => {
     setCurrentPostIndex((prev) => (prev + 1) % posts.length);
-  };
+  }; 
+
+  // Helper function to update word stats
+  const updateWordStats = (word: string, wasCorrect: boolean) => {
+    const stats = getWordStats();
+    const [total, correct] = stats[word] || [0, 0];
+    stats[word] = [total + 1, correct + (wasCorrect ? 1 : 0)];
+    localStorage.setItem('vocabStats', JSON.stringify(stats));
+    setWordStats(stats);
+  }
 
   if (posts.length === 0) {
     return (
@@ -47,7 +67,9 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
         </div>
 
         {/* VocabCanvas */}
-        <VocabCanvas key={currentPostIndex} content={currentPost.content} showInstructions={showInstructions} setShowInstructions={setShowInstructions}/>
+        <VocabCanvas key={currentPostIndex} content={currentPost.content} 
+          showInstructions={showInstructions} setShowInstructions={setShowInstructions} 
+          updateWordStats={updateWordStats} />
 
         {/* Article Footer */}
         <div className="p-4 bg-white rounded-b-lg shadow-sm border-t border-gray-100">
@@ -80,6 +102,7 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
           </div>
         </div>
       </div>
+      <VocabStats wordStats={wordStats} />
     </div>
   );
 } 

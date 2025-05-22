@@ -6,6 +6,7 @@ interface VocabCanvasProps {
   content: string;
   showInstructions: boolean;
   setShowInstructions: (showInstructions: boolean) => void;
+  updateWordStats: (word: string, wasCorrect: boolean) => void;
 }
 
 type FlashType = 'none' | 'green' | 'red';
@@ -13,24 +14,6 @@ type FlashType = 'none' | 'green' | 'red';
 interface Token {
   text: string;
   isWord: boolean;
-}
-
-// Type for our word stats
-type WordStats = [number, number]; // [total encounters, correct attempts]
-
-// Helper function to get word stats from localStorage
-function getWordStats(): Record<string, WordStats> {
-  if (typeof window === 'undefined') return {};
-  const stats = localStorage.getItem('vocabStats');
-  return stats ? JSON.parse(stats) : {};
-}
-
-// Helper function to update word stats
-function updateWordStats(word: string, wasCorrect: boolean) {
-  const stats = getWordStats();
-  const [total, correct] = stats[word] || [0, 0];
-  stats[word] = [total + 1, correct + (wasCorrect ? 1 : 0)];
-  localStorage.setItem('vocabStats', JSON.stringify(stats));
 }
 
 function tokenizeContent(content: string): Token[] {
@@ -43,7 +26,45 @@ function tokenizeContent(content: string): Token[] {
   }));
 }
 
-export default function VocabCanvas({ content, showInstructions, setShowInstructions }: VocabCanvasProps) {
+function getSentenceContext(tokens: Token[], currentWordIndex: number): string {
+  const words = tokens.filter(token => token.isWord);
+  const currentWord = words[currentWordIndex];
+  
+  // Find the token index of the current word
+  const tokenIndex = tokens.findIndex(token => 
+    token.isWord && token.text === currentWord.text
+  );
+  
+  let startIndex = tokenIndex;
+  let endIndex = tokenIndex;
+  
+  // Look backwards for sentence start (period, exclamation, question mark)
+  while (startIndex > 0) {
+    const token = tokens[startIndex - 1];
+    if (/[.!?]/.test(token.text)) {
+      break;
+    }
+    startIndex--;
+  }
+  
+  // Look forwards for sentence end
+  while (endIndex < tokens.length - 1) {
+    const token = tokens[endIndex + 1];
+    if (/[.!?]/.test(token.text)) {
+      endIndex = endIndex + 1;
+      break;
+    }
+    endIndex++;
+  }
+  
+  // Join the tokens to form the sentence
+  return tokens.slice(startIndex, endIndex + 1)
+    .map(token => token.text)
+    .join('')
+    .trim();
+}
+
+export default function VocabCanvas({ content, showInstructions, setShowInstructions, updateWordStats }: VocabCanvasProps) {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [flashState, setFlashState] = useState<FlashType>('none');
   const [showTranslation, setShowTranslation] = useState(false);
@@ -58,6 +79,7 @@ export default function VocabCanvas({ content, showInstructions, setShowInstruct
   const handleTranslation = async (word: string) => {
     setIsTranslating(true);
     try {
+      const sentenceContext = getSentenceContext(tokens, currentWordIndex);
       const response = await fetch('/api/translate', {
         method: 'POST',
         headers: {
@@ -65,7 +87,9 @@ export default function VocabCanvas({ content, showInstructions, setShowInstruct
         },
         body: JSON.stringify({
           text: word,
-          mode: 'toEnglish'
+          mode: 'toEnglish',
+          api: 'deepl',
+          context: sentenceContext
         }),
       });
 
@@ -87,11 +111,27 @@ export default function VocabCanvas({ content, showInstructions, setShowInstruct
       if (showInstructions) {
         setShowInstructions(false);
       }
+        
+      const currentWord = words[currentWordIndex]?.text.toLowerCase();
+
+      // Any key press should close translation, record stats, and move to next word
+      if (showTranslation) {
+        if (currentWord) {
+          updateWordStats(currentWord, false);
+        }
+        setShowTranslation(false);
+        
+        setTimeout(() => {
+          setFlashState('none');
+          setCurrentWordIndex(prev => prev + 1);
+        }, 100);
+
+        return;
+      }
 
       if (event.code === 'KeyE' && currentWordIndex < wordCount - 1) {
         event.preventDefault();
-        
-        const currentWord = words[currentWordIndex]?.text.toLowerCase();
+
         if (currentWord) {
           updateWordStats(currentWord, true);
         }
@@ -106,25 +146,10 @@ export default function VocabCanvas({ content, showInstructions, setShowInstruct
       } else if (event.code === 'KeyQ' && currentWordIndex < wordCount - 1) {
         event.preventDefault();
         
-        const currentWord = words[currentWordIndex]?.text.toLowerCase();
-        
-        if (!showTranslation) {
-          // First Q press - show translation
-          if (currentWord) {
-            setFlashState('red');
-            await handleTranslation(currentWord);
-          }
-        } else {
-          // Second Q press - proceed to next word
-          if (currentWord) {
-            updateWordStats(currentWord, false);
-          }
-          setShowTranslation(false);
-          
-          setTimeout(() => {
-            setFlashState('none');
-            setCurrentWordIndex(prev => prev + 1);
-          }, 100);
+        // First Q press - show translation
+        if (currentWord) {
+          setFlashState('red');
+          await handleTranslation(currentWord);
         }
       }
     };
