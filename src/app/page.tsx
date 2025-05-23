@@ -55,7 +55,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto space-y-8 p-8">
+      <div className="max-w-6xl mx-auto space-y-8 p-8">
         <header className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-gray-800">French Vocabulary Practice</h1>
           <p className="text-gray-600">Improve your French vocabulary with Reddit posts from r/France</p>

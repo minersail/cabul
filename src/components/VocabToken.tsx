@@ -1,6 +1,15 @@
 import { Token } from "@/utils/tokenization";
 import { getCompositionColor } from "@/utils/tokenization";
 
+
+/**
+ * Represents the result of a translation operation
+ * @interface TranslationResult
+ * @property {string} translation - The translated text
+ * @property {Object} [compositionality] - Optional compositionality analysis
+ * @property {number} compositionality.score - Compositionality score between 0-1
+ * @property {string} compositionality.interpretation - Human readable interpretation of the score
+ */
 export interface TranslationResult {
   translation: string;
   compositionality?: {
@@ -9,6 +18,17 @@ export interface TranslationResult {
   };
 }
 
+/**
+ * Props for the VocabToken component
+ * @interface VocabTokenProps
+ * @property {Token} token - The token object containing text and word flag
+ * @property {number} index - Index of this token in the token array
+ * @property {boolean} isCurrentWord - Whether this token is the currently focused word
+ * @property {string} className - used to indicate known/unknown word, etc.
+ * @property {boolean} showTranslation - Whether to show the translation popup
+ * @property {TranslationResult | null} result - Translation/compositionality result
+ * @property {boolean} isLoading - Whether translation is in progress
+ */
 interface VocabTokenProps {
   token: Token;
   index: number;
@@ -19,6 +39,11 @@ interface VocabTokenProps {
   isLoading: boolean;
 }
 
+
+/**
+ * Renders a single token (word or punctuation) in the vocabulary learning interface
+ * with optional translation popup for the current word.
+ */
 export default function VocabToken({
   token,
   index,

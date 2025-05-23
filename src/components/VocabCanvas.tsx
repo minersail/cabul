@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   tokenizeContent, 
   getSentenceContext, 
@@ -12,10 +12,10 @@ type FlashType = 'none' | 'green' | 'red';
 
 interface VocabCanvasProps {
   content: string;
-  showInstructions: boolean;
-  setShowInstructions: (showInstructions: boolean) => void;
   updateWordStats: (word: string, wasCorrect: boolean) => void;
   enableCompositionality?: boolean;
+  isLearningMode: boolean;
+  setIsLearningMode: (value: boolean) => void;
 }
 
 function getCurrentTokenStyle(
@@ -46,10 +46,10 @@ function getCurrentTokenStyle(
 
 export default function VocabCanvas({ 
   content, 
-  showInstructions, 
-  setShowInstructions, 
   updateWordStats,
-  enableCompositionality = false
+  enableCompositionality = false,
+  isLearningMode,
+  setIsLearningMode
 }: VocabCanvasProps) {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [flashState, setFlashState] = useState<FlashType>('none');
@@ -61,7 +61,7 @@ export default function VocabCanvas({
   const words = tokens.filter(token => token.isWord);
   const wordCount = words.length;
 
-  const handleAnalysis = async (word: string) => {
+  const handleAnalysis = useCallback(async (word: string) => {
     setIsLoading(true);
     try {
       const sentenceContext = getSentenceContext(tokens, currentWordIndex);
@@ -125,73 +125,96 @@ export default function VocabCanvas({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [tokens, currentWordIndex, enableCompositionality]);
 
   useEffect(() => {
     const handleKeyPress = async (event: KeyboardEvent) => {
-      if (showInstructions) {
-        setShowInstructions(false);
-      }
-        
-      const currentWord = words[currentWordIndex]?.text.toLowerCase();
-
-      // Any key press should close translation, record stats, and move to next word
-      if (showTranslation) {
-        if (currentWord) {
-          updateWordStats(currentWord, false);
+      if (wordCount === 0 || currentWordIndex >= wordCount && !(currentWordIndex === 0 && wordCount ===0) ) {
+        if(!(currentWordIndex === 0 && wordCount ===0)){
+          return;
         }
-        setShowTranslation(false);
-        setResult(null);
-        
-        setTimeout(() => {
-          setFlashState('none');
-          setCurrentWordIndex(prev => prev + 1);
-        }, 100);
+      }
+      
+      const currentWordText = wordCount > 0 ? words[currentWordIndex].text.toLowerCase() : "";
 
+      if (isLearningMode) {
+        if (event.code === 'KeyQ') {
+          event.preventDefault();
+          const sentenceContext = getSentenceContext(tokens, currentWordIndex);
+          console.log("Learning Mode: Translate whole sentence:", sentenceContext);
+          setResult({ translation: `Sentence context: ${sentenceContext}` });
+          setShowTranslation(true);
+        } else if (event.code === 'KeyW') {
+          event.preventDefault();
+          console.log("Learning Mode: Wiktionary lookup for:", currentWordText);
+          setResult({ translation: `Wiktionary stub for: ${currentWordText}` });
+          setShowTranslation(true);
+        } else if (event.code === 'KeyE') {
+          event.preventDefault();
+          console.log("Learning Mode: Exiting and advancing.");
+          setIsLearningMode(false);
+
+          setFlashState('none');
+          setResult(null);
+          setShowTranslation(false);
+          
+          if (currentWordIndex < wordCount - 1) {
+            setCurrentWordIndex(prev => prev + 1);
+          } else {
+            console.log("Exited learning mode on the last word.");
+          }
+        } else if (event.code === 'KeyR') {
+          event.preventDefault();
+          const threeGram = getNGram(tokens, currentWordIndex);
+          console.log("Learning Mode: Phrase detection for:", threeGram);
+          setResult({ translation: `Phrase detection stub for: ${threeGram}` });
+          setShowTranslation(true);
+        }
         return;
       }
 
-      if (event.code === 'KeyE' && currentWordIndex < wordCount - 1) {
+      if (event.code === 'KeyE') {
         event.preventDefault();
-
-        if (currentWord) {
-          updateWordStats(currentWord, true);
+        if (wordCount > 0 && currentWordIndex < wordCount) {
+          if (currentWordText) {
+            updateWordStats(currentWordText, true);
+          }
+          setFlashState('green');
+          setShowTranslation(false);
+          setResult(null);
+          
+          setTimeout(() => {
+            setFlashState('none');
+            if (currentWordIndex < wordCount - 1) {
+              setCurrentWordIndex(prev => prev + 1);
+            } else {
+              console.log("KeyE: On last word, marked known.");
+            }
+          }, 100);
         }
-
-        setFlashState('green');
-        setShowTranslation(false);
-        setResult(null);
-        
-        setTimeout(() => {
-          setFlashState('none');
-          setCurrentWordIndex(prev => prev + 1);
-        }, 100);
-      } else if (event.code === 'KeyQ' && currentWordIndex < wordCount - 1) {
+      } else if (event.code === 'KeyQ') {
         event.preventDefault();
-        
-        // First Q press - show translation and compositionality
-        if (currentWord) {
-          setFlashState('red');
-          await handleAnalysis(currentWord);
+        if (wordCount > 0 && currentWordIndex < wordCount) {
+          if (currentWordText) {
+            updateWordStats(currentWordText, false);
+            setFlashState('red');
+            await handleAnalysis(currentWordText);
+            setIsLearningMode(true);
+          }
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentWordIndex, wordCount, words, showInstructions, showTranslation]);  
+  }, [currentWordIndex, wordCount, words, showTranslation, isLearningMode, updateWordStats, tokens, enableCompositionality, handleAnalysis, setIsLearningMode]);  
 
-  if (!content) return null;
+  if (!content && wordCount === 0) return null;
 
   let currentWordCounter = 0;
   
   return (
-    <div className="relative">
-      {showInstructions && (
-        <div className="-top-12 left-0 right-0 text-center text-sm text-gray-500 bg-gray-50 p-2 rounded-t-lg border-b border-gray-200">
-          Press <kbd className="px-2 py-1 bg-gray-200 rounded">E</kbd> if you know the word, <kbd className="px-2 py-1 bg-gray-200 rounded">Q</kbd> if you don't
-        </div>
-      )}
+    <div className="flex-grow relative">
       <div className="relative p-6 bg-gray-50 rounded-lg font-serif text-lg leading-relaxed">
         <div className="absolute top-2 right-2 text-sm text-gray-500">
           Word {currentWordIndex + 1} of {wordCount}

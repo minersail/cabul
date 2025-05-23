@@ -69,7 +69,7 @@ export default function VocabStats({ wordStats }: { wordStats: Record<string, [n
   }
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md">
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Vocabulary Statistics</h2>
         <button onClick={handleClearStats} className="text-red-500 hover:text-red-700 text-sm underline">Clear Stats</button>
