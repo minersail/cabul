@@ -59,8 +59,6 @@ async function translateDeepL(text: string, context?: string): Promise<string> {
     throw new Error('DEEPL_API_KEY is not set in environment variables');
   }
 
-  console.log('context', context);
-
   try {
     const response = await fetch('https://api-free.deepl.com/v2/translate', {
       method: 'POST',

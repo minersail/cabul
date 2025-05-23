@@ -69,7 +69,7 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
         {/* VocabCanvas */}
         <VocabCanvas key={currentPostIndex} content={currentPost.content} 
           showInstructions={showInstructions} setShowInstructions={setShowInstructions} 
-          updateWordStats={updateWordStats} />
+          updateWordStats={updateWordStats} enableCompositionality={false} />
 
         {/* Article Footer */}
         <div className="p-4 bg-white rounded-b-lg shadow-sm border-t border-gray-100">
