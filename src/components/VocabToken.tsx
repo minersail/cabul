@@ -1,5 +1,5 @@
-import { Token } from "@/utils/tokenization";
 import { getCompositionColor } from "@/utils/tokenization";
+import { SpaCyToken } from "@/types/tokenization";
 
 
 /**
@@ -9,6 +9,8 @@ import { getCompositionColor } from "@/utils/tokenization";
  * @property {Object} [compositionality] - Optional compositionality analysis
  * @property {number} compositionality.score - Compositionality score between 0-1
  * @property {string} compositionality.interpretation - Human readable interpretation of the score
+ * @property {string} [lemma] - Lemma of the word
+ * @property {string} [pos] - Part of speech of the word
  */
 export interface TranslationResult {
   translation: string;
@@ -16,22 +18,24 @@ export interface TranslationResult {
     score: number;
     interpretation: string;
   };
+  lemma?: string;
+  pos?: string;
 }
 
 /**
  * Props for the VocabToken component
  * @interface VocabTokenProps
- * @property {Token} token - The token object containing text and word flag
- * @property {number} index - Index of this token in the token array
+ * @property {SpaCyToken} spacyToken - The new SpaCy token object
+ * @property {string} originalText - The original text segment for this token (including its own whitespace if any, though spaCy usually separates)
  * @property {boolean} isCurrentWord - Whether this token is the currently focused word
  * @property {string} className - used to indicate known/unknown word, etc.
  * @property {boolean} showTranslation - Whether to show the translation popup
- * @property {TranslationResult | null} result - Translation/compositionality result
+ * @property {TranslationResult | null} result - Translation/compositionality/lemma/pos result
  * @property {boolean} isLoading - Whether translation is in progress
  */
 interface VocabTokenProps {
-  token: Token;
-  index: number;
+  spacyToken: SpaCyToken;
+  originalText: string;
   isCurrentWord: boolean;
   className: string;
   showTranslation: boolean;
@@ -45,51 +49,77 @@ interface VocabTokenProps {
  * with optional translation popup for the current word.
  */
 export default function VocabToken({
-  token,
-  index,
+  spacyToken,
+  originalText,
   isCurrentWord,
   className,
   showTranslation,
   result,
   isLoading
 }: VocabTokenProps) {
+
+  // Enhance result with lemma and POS if available and it's the current word
+  // This might be better handled in VocabCanvas when setResult is called,
+  // but can also be done here if result is specific to this token when shown.
+  // For now, let's assume `result` might be enriched by VocabCanvas before passing.
+  // Or, we can add it directly here if the `result` object is for this specific token.
+
+  // If `result` is populated and this is the current word, try to add lemma/pos from spacyToken to display
+  const displayResult = (isCurrentWord && result) 
+    ? { 
+        ...result, 
+        lemma: result.lemma || spacyToken.lemma, 
+        pos: result.pos || spacyToken.pos 
+      } 
+    : result;
+
   return (
     <span
-      key={index}
       className={className}
+      data-lemma={spacyToken.lemma}
+      data-pos={spacyToken.pos}
     >
-      {token.text}
-      {isCurrentWord && showTranslation && result && (
+      {originalText}
+      {isCurrentWord && showTranslation && displayResult && (
         <div
           className="absolute z-50"
           style={{
-            top: '-35px',
+            top: '-40px',
             left: '50%',
             transform: 'translateX(-50%)'
           }}
         >
           <div
-            className="bg-yellow-100 shadow-lg px-3 py-2 rotate-1 border-t-4 border-yellow-200"
+            className="bg-yellow-100 shadow-lg px-3 py-2 rotate-1 border-t-4 border-yellow-200 text-left"
             style={{
               whiteSpace: 'nowrap',
-              textAlign: 'center',
-              transform: 'rotate(-12deg)',
-              boxShadow: '2px 2px 8px rgba(0,0,0,0.1)'
+              transform: 'rotate(-10deg)',
+              boxShadow: '2px 2px 8px rgba(0,0,0,0.1)',
+              minWidth: '150px'
             }}
           >
             <p className="text-sm text-gray-700 font-handwriting">
-              {isLoading ? 'Analyzing...' : result.translation}
+              {isLoading ? 'Analyzing...' : displayResult.translation}
             </p>
-            {result.compositionality && !isLoading && (
+            {displayResult.lemma && !isLoading && (
+              <p className="text-xs font-mono text-purple-600">
+                Lemma: {displayResult.lemma}
+              </p>
+            )}
+            {displayResult.pos && !isLoading && (
+              <p className="text-xs font-mono text-blue-600">
+                POS: {displayResult.pos}
+              </p>
+            )}
+            {displayResult.compositionality && !isLoading && (
               <p 
                 className="text-xs font-mono mt-1 pt-1 border-t border-yellow-200"
-                style={{ color: getCompositionColor(result.compositionality.score) }}
+                style={{ color: getCompositionColor(displayResult.compositionality.score) }}
               >
-                <br />
-                Compositionality: {(result.compositionality.score * 100).toFixed(1)}%
+                Compositionality: {(displayResult.compositionality.score * 100).toFixed(1)}%
                 <br />
                 <span className="text-gray-600 text-[10px]">
-                  {result.compositionality.interpretation}
+                  {displayResult.compositionality.interpretation}
                 </span>
               </p>
             )}

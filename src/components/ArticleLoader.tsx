@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect, Dispatch } from "react";
 import VocabCanvas from "./VocabCanvas";
 import VocabStats from "./VocabStats";
 import InstructionPane from "./InstructionPane";
+import { SpaCyTokenizationResponse } from "@/types/tokenization";
 
 interface RedditPost {
   title: string;
@@ -32,9 +33,65 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
   const [wordStats, setWordStats] = useState<Record<string, WordStats>>(getWordStats());
   const [enableCompositionality, setEnableCompositionality] = useState(false);
   const [isLearningMode, setIsLearningMode] = useState(false);
+  const [tokenizationResult, setTokenizationResult] = useState<SpaCyTokenizationResponse | null>(null);
+  const [isTokenizing, setIsTokenizing] = useState(false);
+  const [tokenizationError, setTokenizationError] = useState<string | null>(null);
+
+  const currentPost = posts.length > 0 ? posts[currentPostIndex] : null;
+
+  useEffect(() => {
+    if (currentPost) {
+      const fetchTokenization = async () => {
+        setIsTokenizing(true);
+        setTokenizationResult(null);
+        setTokenizationError(null);
+        try {
+          const response = await fetch('/api/tokenize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: currentPost.content,
+              parameters: {
+                mode: 'full',
+                include_entities: true,
+                include_pos: true,
+                include_lemmas: true,
+                include_dependencies: true
+              }
+            }),
+          });
+          const data = (await response.json())[0];
+          console.log("Tokenization result:", data);
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to tokenize content (server response not OK)');
+          }
+          // Even if response.ok, the Hugging Face API might return an error structure
+          // or a success structure that doesn't contain tokens (e.g. model loading message)
+          if (!data.tokens || !Array.isArray(data.tokens)) {
+            console.error("Tokenization successful but tokens are missing or not an array:", data);
+            throw new Error(data.error || 'Tokenization API returned unexpected payload.');
+          }
+          setTokenizationResult(data);
+        } catch (error) {
+          console.error("Tokenization error in ArticleLoader:", error);
+          setTokenizationError(error instanceof Error ? error.message : String(error));
+          setTokenizationResult(null);
+        } finally {
+          setIsTokenizing(false);
+        }
+      };
+      fetchTokenization();
+    } else {
+      setTokenizationResult(null); 
+      setTokenizationError(null);
+    }
+  }, [currentPost]);
 
   const handleNextArticle = () => {
     setCurrentPostIndex((prev) => (prev + 1) % posts.length);
+    setTokenizationResult(null);
+    setTokenizationError(null);
   }; 
 
   // Helper function to update word stats
@@ -53,8 +110,10 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
       </div>
     );
   }
-
-  const currentPost = posts[currentPostIndex];
+  
+  if (!currentPost) {
+    return <p>Loading post...</p>;
+  }
 
   return (
     <div>
@@ -72,14 +131,30 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
             </div>
 
             {/* VocabCanvas */}
-            <VocabCanvas 
-              key={currentPostIndex} 
-              content={currentPost.content} 
-              updateWordStats={updateWordStats} 
-              enableCompositionality={enableCompositionality} 
-              isLearningMode={isLearningMode}
-              setIsLearningMode={setIsLearningMode}
-            />
+            {isTokenizing && <div className="p-6 text-center text-gray-500">Tokenizing article...</div>}
+            
+            {tokenizationError && (
+              <div className="p-6 text-center text-red-500">
+                <p>Error tokenizing article:</p>
+                <p className="text-sm">{tokenizationError}</p>
+              </div>
+            )}
+
+            {!isTokenizing && !tokenizationError && tokenizationResult && (
+              <VocabCanvas 
+                key={currentPostIndex} 
+                content={currentPost.content}
+                tokenizationInfo={tokenizationResult}
+                updateWordStats={updateWordStats} 
+                enableCompositionality={enableCompositionality} 
+                isLearningMode={isLearningMode}
+                setIsLearningMode={setIsLearningMode as Dispatch<boolean>}
+              />
+            )}
+            
+            {!isTokenizing && !tokenizationError && !tokenizationResult && (
+                 <div className="p-6 text-center text-gray-500">Loading tokenized data or no data available.</div>
+            )}
 
             {/* Article Footer */}
             <div className="p-4 bg-white rounded-b-lg shadow-sm border-t border-gray-100">
