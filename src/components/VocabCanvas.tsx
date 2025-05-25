@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, Dispatch } from "react";
-import VocabToken, { TranslationResult } from "./VocabToken";
+import React, { useState, useEffect, useCallback, Dispatch } from "react";
+import VocabToken, { TokenInformation, InformationDisplayType } from "./VocabToken";
 import { SpaCyTokenizationResponse, SpaCyToken } from "@/types/tokenization";
 
 type FlashType = 'none' | 'green' | 'red';
@@ -59,8 +59,8 @@ export default function VocabCanvas({
 
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [flashState, setFlashState] = useState<FlashType>('none');
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [result, setResult] = useState<TranslationResult | null>(null);
+  const [showInformation, setShowInformation] = useState(false);
+  const [result, setResult] = useState<TokenInformation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [debugString, setDebugString] = useState("");
 
@@ -75,12 +75,16 @@ export default function VocabCanvas({
     return processedTextFromApi.substring(token.start, token.end);
   }, [processedTextFromApi]);
 
-  const getSentenceContext = useCallback((index: number): string => {
-    if (!allSentences) {
+  const getSentenceContext = useCallback((token?: SpaCyToken): string => {
+    if (!allSentences || !token) {
       return "";
     }
-    const sentence = allSentences[index];
-    return sentence ? sentence.text : "";
+
+    const sentence = allSentences.find(sent => 
+      token.start >= sent.start && token.end <= sent.end
+    );
+    
+    return sentence ? processedTextFromApi.substring(sentence.start, sentence.end) : "";
   }, [allSentences]);
 
   const handleAnalysis = useCallback(async (wordToken: SpaCyToken) => {
@@ -88,69 +92,44 @@ export default function VocabCanvas({
     try {
       const wordToTranslate = getOriginalTextForToken(wordToken);
       
-      // Make API calls - only include compositionality if enabled
-      const apiCalls = [
-        fetch('/api/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: wordToTranslate, 
-            mode: 'toEnglish',
-            api: 'deepl',
-            context: getSentenceContext(currentWordIndex)
-          }),
-        })
-      ];
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: wordToTranslate, 
+          mode: 'toEnglish',
+          api: 'deepl',
+          context: getSentenceContext(wordToken)
+        }),
+      });
 
-      if (enableCompositionality) {
-        // TODO: Implement compositionality
-        // apiCalls.push(
-        //   fetch('/api/compositionality', { 
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify({ phrase: threeGram }) 
-        //   })
-        // );
-      }
-      const responses = await Promise.all(apiCalls);
-      const [translationResponse, compositionResponse] = responses;
-      const translationData = await translationResponse.json();
+      const translationData = await response.json();
 
-      if (!translationResponse.ok) {
+      if (!response.ok) {
         throw new Error(translationData.error || 'Translation failed');
       }
 
-      let compositionData = null;
-      if (enableCompositionality && compositionResponse) {
-        if (compositionResponse.ok) {
-          compositionData = await compositionResponse.json();
-        } else {
-          console.warn("Compositionality API call failed:", await compositionResponse.text());
-        }
-      }
-
       setResult({
-        translation: translationData.result,
-        lemma: wordToken.lemma,
-        pos: wordToken.pos,
-        compositionality: compositionData && compositionData.compositionality_score !== undefined ? {
-          score: compositionData.compositionality_score,
-          interpretation: compositionData.interpretation || 'No interpretation available'
-        } : undefined
+        displayType: 'wordTranslation',
+        wordTranslation: {
+          translation: translationData.result,
+          compositionality: undefined // We'll add this back when implementing compositionality
+        }
       });
-      setShowTranslation(true);
+      setShowInformation(true);
     } catch (error) {
       console.error('Analysis error in VocabCanvas:', error);
       setResult({
-        translation: 'Error analyzing word',
-        lemma: wordToken.lemma,
-        pos: wordToken.pos
+        displayType: 'wordTranslation',
+        wordTranslation: {
+          translation: 'Error analyzing word',
+        }
       });
-      setShowTranslation(true);
+      setShowInformation(true);
     } finally {
       setIsLoading(false);
     }
-  }, [allTokens, currentWordIndex, enableCompositionality, getOriginalTextForToken, getSentenceContext]); 
+  }, [getOriginalTextForToken, getSentenceContext]);
 
   useEffect(() => {
     const handleKeyPress = async (event: KeyboardEvent) => {
@@ -166,54 +145,135 @@ export default function VocabCanvas({
       if (isLearningMode) {
         if (event.code === 'KeyQ') {
           event.preventDefault();
-          const sentenceContext = getSentenceContext(currentWordIndex);
-          setResult({ translation: `Sentence context: ${sentenceContext}`, lemma: currentLearnableToken?.lemma, pos: currentLearnableToken?.pos });
-          setShowTranslation(true);
+          if (currentLearnableToken) {
+            const sentenceContext = getSentenceContext(currentLearnableToken);
+            if (sentenceContext) {
+              setIsLoading(true);
+              setShowInformation(false);
+              try {
+                const response = await fetch('/api/translate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    text: sentenceContext,
+                    mode: 'toEnglish',
+                    api: 'deepl',
+                  }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                  throw new Error(data.error || 'Sentence translation failed');
+                }
+                setResult({
+                  displayType: 'sentenceTranslation',
+                  sentenceTranslation: {
+                    fullSentence: sentenceContext,
+                    translation: data.result
+                  }
+                });
+              } catch (error) {
+                console.error('Sentence translation error:', error);
+                setResult({
+                  displayType: 'sentenceTranslation',
+                  sentenceTranslation: {
+                    fullSentence: sentenceContext,
+                    translation: 'Error translating sentence'
+                  }
+                });
+              } finally {
+                setIsLoading(false);
+                setShowInformation(true);
+              }
+            }
+          }
         } else if (event.code === 'KeyW') {
           event.preventDefault();
-          setResult({ translation: `Wiktionary stub for: ${currentWordText}`, lemma: currentLearnableToken?.lemma, pos: currentLearnableToken?.pos });
-          setShowTranslation(true);
+          if (currentLearnableToken) {
+            const currentWord = getOriginalTextForToken(currentLearnableToken);
+            setIsLoading(true);
+            setShowInformation(false);
+            try {
+              const response = await fetch('/api/wiktionary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ word: currentWord }),
+              });
+              
+              const data = await response.json();
+              
+              if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch Wiktionary data');
+              }
+              
+              setResult({
+                displayType: 'wiktionary',
+                wiktionary: data
+              });
+            } catch (error) {
+              console.error('Wiktionary error:', error);
+              setResult({
+                displayType: 'wiktionary',
+                wiktionary: {
+                  word: currentWord,
+                  etymology: null,
+                  pronunciation: null,
+                  definitions: ['Failed to load Wiktionary data'],
+                  url: `https://en.wiktionary.org/wiki/${encodeURIComponent(currentWord)}`
+                }
+              });
+            } finally {
+              setIsLoading(false);
+              setShowInformation(true);
+            }
+          }
         } else if (event.code === 'KeyE') {
           event.preventDefault();
           setIsLearningMode(false);
           setFlashState('none');
           setResult(null);
-          setShowTranslation(false);
+          setShowInformation(false);
           if (currentWordIndex < wordCount - 1) setCurrentWordIndex(prev => prev + 1);
         } else if (event.code === 'KeyR') {
           event.preventDefault();
-          setResult({ translation: `Phrase detection stub for: ${currentWordText}`, lemma: currentLearnableToken?.lemma, pos: currentLearnableToken?.pos });
-          setShowTranslation(true);
+          if (currentLearnableToken) {
+            setResult({
+              displayType: 'phraseDetection',
+              phraseDetection: {
+                stub: `Phrase detection stub for: ${currentWordText}`,
+              }
+            });
+            setShowInformation(true);
+          }
         }
-        return; 
+        return;
       }
 
-      if (event.code === 'KeyE') { 
+      if (event.code === 'KeyE') {
         event.preventDefault();
         if (currentLearnableToken) {
-          updateWordStats(currentWordText, true); 
+          updateWordStats(currentWordText, true);
           setFlashState('green');
-          setShowTranslation(false);
+          setShowInformation(false);
           setResult(null);
           setTimeout(() => {
             setFlashState('none');
             if (currentWordIndex < wordCount - 1) setCurrentWordIndex(prev => prev + 1);
           }, 100);
         }
-      } else if (event.code === 'KeyQ') { 
+      } else if (event.code === 'KeyQ') {
         event.preventDefault();
         if (currentLearnableToken) {
-          updateWordStats(currentWordText, false); 
+          updateWordStats(currentWordText, false);
           setFlashState('red');
-          await handleAnalysis(currentLearnableToken); 
-          setIsLearningMode(true); 
+          await handleAnalysis(currentLearnableToken);
+          setIsLearningMode(true);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentWordIndex, wordCount, learnableWords, isLearningMode, updateWordStats, allTokens, enableCompositionality, handleAnalysis, setIsLearningMode, getOriginalTextForToken, getSentenceContext]);  
+  }, [currentWordIndex, wordCount, learnableWords, isLearningMode, updateWordStats, handleAnalysis, setIsLearningMode, getOriginalTextForToken, getSentenceContext]);
 
   if (!tokenizationInfo || !allTokens || allTokens.length === 0) {
     return <div className="p-6 text-center text-gray-500">Article content not yet available or empty.</div>;
@@ -248,8 +308,8 @@ export default function VocabCanvas({
           currentWordIndex, 
           flashState
         )}
-        showTranslation={showTranslation && isCurrentFocusLearnableWord}
-        result={result} 
+        showInformation={showInformation && isCurrentFocusLearnableWord}
+        tokenInfo={result} 
         isLoading={isLoading && isCurrentFocusLearnableWord}
       />
     );
@@ -271,7 +331,7 @@ export default function VocabCanvas({
           Word {wordCount > 0 ? currentWordIndex + 1 : 0} of {wordCount} 
           (Tokens: {allTokens.length})
         </div>
-        <div className="mt-4 whitespace-pre-wrap"> 
+        <div className="mt-4 whitespace-pre-wrap">
           {renderedTextElements}
         </div>
         
