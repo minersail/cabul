@@ -1,6 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import DependencyTree from '@/components/DependencyTree';
+import { SpaCyToken } from '@/types/tokenization';
+
+interface TokenizationResult {
+  text: string;
+  tokens: SpaCyToken[];
+  sentences?: {
+    text: string;
+    start: number;
+    end: number;
+  }[];
+}
 
 export default function TokenizePage() {
   const [text, setText] = useState('Bonjour le monde. Ceci est un test.');
@@ -10,7 +22,7 @@ export default function TokenizePage() {
   const [includeLemmas, setIncludeLemmas] = useState(true);
   const [includeDependencies, setIncludeDependencies] = useState(true);
   const [includeSentences, setIncludeSentences] = useState(true);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<TokenizationResult | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,7 +51,7 @@ export default function TokenizePage() {
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json())[0];
 
       if (!response.ok) {
         throw new Error(data.error || 'Tokenization request failed');
@@ -174,7 +186,18 @@ export default function TokenizePage() {
             {result && (
               <div className="mt-6">
                 <h2 className="text-lg font-medium text-gray-900">API Response</h2>
-                <div className="mt-2 p-4 bg-gray-800 text-green-300 rounded-md overflow-x-auto">
+                
+                {/* Add Dependency Tree Visualization */}
+                {result.tokens && result.tokens.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-md font-medium text-gray-700 mb-2">Dependency Tree</h3>
+                    <div className="border rounded-lg overflow-hidden bg-white">
+                      <DependencyTree tokens={result.tokens} />
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-4 p-4 bg-gray-800 text-green-300 rounded-md overflow-x-auto">
                   <pre>{JSON.stringify(result, null, 2)}</pre>
                 </div>
               </div>

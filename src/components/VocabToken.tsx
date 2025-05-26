@@ -37,8 +37,8 @@ interface WiktionaryInfo {
  * Phrase detection specific information - stub for now
  */
 interface PhraseDetectionInfo {
-  // Stub - will be implemented later
-  stub: string;
+  originalWord: string;
+  phrases: string[];
 }
 
 /**
@@ -78,8 +78,8 @@ interface VocabTokenProps {
  */
 function WordTranslationDisplay({ info, isLoading }: { info: WordTranslationInfo, isLoading: boolean }) {
   return (
-    <div className="bg-yellow-100 shadow-lg px-3 py-2 rotate-1 border-t-6 border-yellow-200 text-left">
-      <p className="text-sm text-gray-700 font-handwriting">
+    <div className="bg-yellow-100 shadow-lg px-3 py-2 -rotate-8 border-t-6 border-yellow-200 text-left">
+      <p className="text-sm text-gray-700 font-handwriting text-nowrap">
         {isLoading ? 'Analyzing...' : info.translation}
       </p>
       {info.compositionality && !isLoading && (
@@ -170,10 +170,21 @@ function WiktionaryDisplay({ info, isLoading }: { info: WiktionaryInfo, isLoadin
  */
 function PhraseDetectionDisplay({ info, isLoading }: { info: PhraseDetectionInfo, isLoading: boolean }) {
   return (
-    <div className="bg-green-50 shadow-lg px-3 py-2 border-t-6 border-green-200 text-left">
-      <p className="text-sm text-gray-700">
-        {isLoading ? 'Analyzing phrases...' : 'Phrase detection coming soon'}
-      </p>
+    <div className="bg-green-50 shadow-lg px-3 py-2 border-t-6 border-green-200 text-left min-w-[200px]">
+      {isLoading ? (
+        <p className="text-sm text-gray-700">Analyzing phrases...</p>
+      ) : (
+        <>
+          <p className="text-xs font-medium text-green-700 mb-1">Phrase</p>
+          <div className="text-sm text-gray-700">
+            {info.phrases.length > 0 && (
+              <p>
+                {info.phrases.join(' ')}
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

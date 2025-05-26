@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, Dispatch } from "react";
 import VocabToken, { TokenInformation, InformationDisplayType } from "./VocabToken";
 import { SpaCyTokenizationResponse, SpaCyToken } from "@/types/tokenization";
+import { generateAllPhrases } from "@/utils/phrasing";
 
 type FlashType = 'none' | 'green' | 'red';
 
@@ -72,6 +73,7 @@ export default function VocabCanvas({
   const wordCount = learnableWords.length;
 
   const getOriginalTextForToken = useCallback((token: SpaCyToken): string => {
+    if (!token || token.start === undefined || token.end === undefined) return '';
     return processedTextFromApi.substring(token.start, token.end);
   }, [processedTextFromApi]);
 
@@ -165,6 +167,7 @@ export default function VocabCanvas({
                   throw new Error(data.error || 'Sentence translation failed');
                 }
                 setResult({
+                  ...result,
                   displayType: 'sentenceTranslation',
                   sentenceTranslation: {
                     fullSentence: sentenceContext,
@@ -174,6 +177,7 @@ export default function VocabCanvas({
               } catch (error) {
                 console.error('Sentence translation error:', error);
                 setResult({
+                  ...result,
                   displayType: 'sentenceTranslation',
                   sentenceTranslation: {
                     fullSentence: sentenceContext,
@@ -206,12 +210,14 @@ export default function VocabCanvas({
               }
               
               setResult({
+                ...result,
                 displayType: 'wiktionary',
                 wiktionary: data
               });
             } catch (error) {
               console.error('Wiktionary error:', error);
               setResult({
+                ...result,
                 displayType: 'wiktionary',
                 wiktionary: {
                   word: currentWord,
@@ -236,12 +242,38 @@ export default function VocabCanvas({
         } else if (event.code === 'KeyR') {
           event.preventDefault();
           if (currentLearnableToken) {
-            setResult({
-              displayType: 'phraseDetection',
-              phraseDetection: {
-                stub: `Phrase detection stub for: ${currentWordText}`,
-              }
-            });
+            const currentWord = getOriginalTextForToken(currentLearnableToken);
+            
+            // Find the head token for the current word
+            const headToken = allTokens.find(token => 
+              getOriginalTextForToken(token) === currentLearnableToken.head
+            );
+
+            if (headToken !== undefined && headToken.children !== undefined) {
+              // Get all children of the head token
+              const phrases = generateAllPhrases(allTokens, currentLearnableToken);
+
+              setResult({
+                displayType: 'phraseDetection',
+                phraseDetection: {
+                  originalWord: currentWord as string,
+                  phrases: phrases,
+                }
+              });
+            } else {
+              // If no head found, show just the current word info
+              setResult({
+                displayType: 'phraseDetection',
+                phraseDetection: {
+                  originalWord: currentWord as string,
+                  head: {
+                    text: currentWord as string,
+                    pos: currentLearnableToken.pos
+                  },
+                  children: []
+                }
+              });
+            }
             setShowInformation(true);
           }
         }
@@ -264,7 +296,6 @@ export default function VocabCanvas({
         event.preventDefault();
         if (currentLearnableToken) {
           updateWordStats(currentWordText, false);
-          setFlashState('red');
           await handleAnalysis(currentLearnableToken);
           setIsLearningMode(true);
         }
@@ -273,7 +304,7 @@ export default function VocabCanvas({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentWordIndex, wordCount, learnableWords, isLearningMode, updateWordStats, handleAnalysis, setIsLearningMode, getOriginalTextForToken, getSentenceContext]);
+  }, [currentWordIndex, learnableWords, isLearningMode, updateWordStats, handleAnalysis, getOriginalTextForToken, getSentenceContext]);
 
   if (!tokenizationInfo || !allTokens || allTokens.length === 0) {
     return <div className="p-6 text-center text-gray-500">Article content not yet available or empty.</div>;
