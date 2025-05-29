@@ -161,7 +161,9 @@ export function useKeyboardNavigation(
         }
       }
 
-      event.preventDefault();
+      if (event.code in ['KeyE', 'KeyQ', 'KeyW', 'KeyR']) {
+        event.preventDefault();
+      }
 
       if (isLearningMode) {
         await handleLearningModeKeyPress(event);

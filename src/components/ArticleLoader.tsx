@@ -4,6 +4,7 @@ import { useState, useEffect, Dispatch } from "react";
 import VocabCanvas from "./VocabCanvas";
 import VocabStats from "./VocabStats";
 import InstructionPane from "./InstructionPane";
+import OptionsPane from "./OptionsPane";
 import { SpaCyTokenizationResponse } from "@/types/tokenization";
 
 interface RedditPost {
@@ -36,6 +37,8 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
   const [tokenizationResult, setTokenizationResult] = useState<SpaCyTokenizationResponse | null>(null);
   const [isTokenizing, setIsTokenizing] = useState(false);
   const [tokenizationError, setTokenizationError] = useState<string | null>(null);
+  const [useReddit, setUseReddit] = useState(true);
+  const [autoNav, setAutoNav] = useState(false);
 
   const currentPost = posts.length > 0 ? posts[currentPostIndex] : null;
 
@@ -188,9 +191,17 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
           </div>
         </div>
         
-        <InstructionPane 
-          isLearningMode={isLearningMode}
-        />
+        <div className="w-64 shrink-0">
+          <InstructionPane 
+            isLearningMode={isLearningMode}
+          />
+          <OptionsPane
+            useReddit={useReddit}
+            autoNav={autoNav}
+            onUseRedditChange={setUseReddit}
+            onAutoNavChange={setAutoNav}
+          />
+        </div>
       </div>
 
       <div className="mt-6">
