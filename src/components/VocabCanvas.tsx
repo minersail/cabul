@@ -2,7 +2,7 @@
 
 import React, { useReducer } from "react";
 import VocabToken from "./VocabToken";
-import { SpaCyTokenizationResponse, SpaCyToken } from "@/types/tokenization";
+import { SpaCyTokenizationResponse } from "@/types/tokenization";
 import { canvasReducer, initialState } from "@/reducers/vocabCanvasReducer";
 import { useKeyboardNavigation } from "@/utils/canvasInput";
 import { getCurrentTokenStyle, isTokenLearnable, getLearnableWords } from "@/utils/tokenization";
@@ -32,8 +32,17 @@ export default function VocabCanvas({
   const learnableWords = getLearnableWords(allTokens);
   const wordCount = learnableWords.length;
 
+  // Handler for clicking on learned tokens
+  const handleTokenClick = (learnableWordIndex: number) => {
+    // Only allow clicking on learned tokens (those before furthestWordIndex)
+    if (learnableWordIndex < state.furthestWordIndex) {
+      dispatch({ type: 'NAVIGATE_TO_INDEX', payload: { index: learnableWordIndex } });
+    }
+  };
+
   useKeyboardNavigation(isLearningMode, {
     currentWordIndex: state.currentWordIndex,
+    furthestWordIndex: state.furthestWordIndex,
     tokenizationInfo,
     dispatch,
     updateWordStats,
@@ -59,6 +68,8 @@ export default function VocabCanvas({
       learnableWordIndexInFilteredList = learnableWords.findIndex(lw => lw.start === spacyToken.start && lw.end === spacyToken.end);
     }
 
+    const isLearnedToken = isLearnable && learnableWordIndexInFilteredList < state.furthestWordIndex;
+
     renderedTextElements.push(
       <VocabToken
         key={`spacy-${spacyToken.start}-${i}`}
@@ -68,12 +79,15 @@ export default function VocabCanvas({
         className={getCurrentTokenStyle(
           isLearnable, 
           learnableWordIndexInFilteredList, 
-          state.currentWordIndex, 
+          state.currentWordIndex,
+          state.furthestWordIndex, 
           state.uiState.flashState
         )}
         showInformation={state.uiState.showInformation && isCurrentFocusLearnableWord}
         tokenInfo={state.result} 
         isLoading={state.uiState.isLoading && isCurrentFocusLearnableWord}
+        isClickable={isLearnedToken}
+        onTokenClick={() => handleTokenClick(learnableWordIndexInFilteredList)}
       />
     );
 

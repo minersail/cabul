@@ -58,6 +58,8 @@ export interface TokenInformation {
  * @property {boolean} showInformation - Whether to show the translation popup
  * @property {TokenInformation | null} tokenInfo - Translation/compositionality/lemma/pos result
  * @property {boolean} isLoading - Whether translation is in progress
+ * @property {boolean} isClickable - Whether this token can be clicked to navigate to it
+ * @property {() => void} onTokenClick - Click handler for navigating to this token
  */
 interface VocabTokenProps {
   spacyToken: SpaCyToken;
@@ -67,6 +69,8 @@ interface VocabTokenProps {
   showInformation: boolean;
   tokenInfo: TokenInformation | null;
   isLoading: boolean;
+  isClickable?: boolean;
+  onTokenClick?: () => void;
 }
 
 /**
@@ -330,13 +334,16 @@ export default function VocabToken({
   className,
   showInformation,
   tokenInfo,
-  isLoading
+  isLoading,
+  isClickable,
+  onTokenClick
 }: VocabTokenProps) {
   return (
     <span
-      className={className}
+      className={`${className} ${isClickable ? 'cursor-pointer' : ''}`}
       data-lemma={spacyToken.lemma}
       data-pos={spacyToken.pos}
+      onClick={onTokenClick}
     >
       {originalText}
       {isCurrentWord && showInformation && tokenInfo && tokenInfo.displayType && (

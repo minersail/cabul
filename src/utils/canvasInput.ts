@@ -1,13 +1,31 @@
 import { useCallback, useEffect } from 'react';
-import { SpaCyToken, SpaCyTokenizationResponse } from '@/types/tokenization';
+import { SpaCyTokenizationResponse } from '@/types/tokenization';
 import { translateWord, translateSentence, lookupWiktionary } from './fetchApi';
 import { generateAllPhrases } from './phrasing';
 import { CanvasAction } from '@/reducers/vocabCanvasReducer';
 import { Dispatch } from 'react';
 import { getOriginalTextForToken, getSentenceContext, getLearnableWords } from './tokenization';
 
+// Key mapping dictionary for easier management
+export const KEY_MAPPINGS = {
+  NAVIGATION_MODE: {
+    ADVANCE: { key: 'KeyE', instruction: 'I know this word' },
+    TRANSLATE_WORD: { key: 'KeyW', instruction: 'Need help with word' },
+    GO_BACK: { key: 'KeyQ', instruction: 'Go back to previous word' },
+  },
+  LEARNING_MODE: {
+    TRANSLATE_WORD: { key: 'KeyW', instruction: 'Translate word' },
+    TRANSLATE_SENTENCE: { key: 'KeyA', instruction: 'Translate sentence' },
+    LOOKUP_WIKTIONARY: { key: 'KeyS', instruction: 'Look up word on wiktionary' },
+    DETECT_PHRASES: { key: 'KeyD', instruction: 'Phrase detection' },
+    ADVANCE: { key: 'KeyE', instruction: 'Next word' },
+    GO_BACK: { key: 'KeyQ', instruction: 'Previous word' },
+  }
+} as const;
+
 interface UseKeyPressConfig {
   currentWordIndex: number;
+  furthestWordIndex: number;
   tokenizationInfo: SpaCyTokenizationResponse;
   dispatch: Dispatch<CanvasAction>;
   updateWordStats: (word: string, wasCorrect: boolean) => void;
@@ -16,6 +34,7 @@ interface UseKeyPressConfig {
 
 export function useLearningModeKeyPress({
   currentWordIndex,
+  furthestWordIndex,
   tokenizationInfo,
   dispatch,
   setIsLearningMode
@@ -28,13 +47,35 @@ export function useLearningModeKeyPress({
     const currentWord = getOriginalTextForToken(tokenizationInfo.text, currentLearnableToken);
 
     switch (event.code) {
-      case 'KeyE': {
+      case KEY_MAPPINGS.LEARNING_MODE.ADVANCE.key: {
         setIsLearningMode(false);
         dispatch({ type: 'ADVANCE', payload: { wordCount: learnableWords.length } });
         return true;
       }
 
-      case 'KeyQ': {
+      case KEY_MAPPINGS.LEARNING_MODE.GO_BACK.key: {
+        setIsLearningMode(false);
+        dispatch({ type: 'NAVIGATE_BACK' });
+        return true;
+      }
+
+      case KEY_MAPPINGS.LEARNING_MODE.TRANSLATE_WORD.key: {
+        dispatch({ type: 'LOAD_INFO', payload: { displayType: 'wordTranslation' } });
+        const response = await translateWord(
+          getOriginalTextForToken(tokenizationInfo.text, currentLearnableToken),
+          getSentenceContext(tokenizationInfo.text, tokenizationInfo.sentences || [], currentLearnableToken)
+        );
+        
+        dispatch({ 
+          type: 'TRANSLATE_WORD', 
+          payload: {
+            translation: response.result
+          }
+        });
+        return true;
+      }
+
+      case KEY_MAPPINGS.LEARNING_MODE.TRANSLATE_SENTENCE.key: {
         const sentenceContext = getSentenceContext(tokenizationInfo.text, tokenizationInfo.sentences || [], currentLearnableToken);
         if (!sentenceContext) return false;
 
@@ -51,7 +92,7 @@ export function useLearningModeKeyPress({
         return true;
       }
 
-      case 'KeyW': {
+      case KEY_MAPPINGS.LEARNING_MODE.LOOKUP_WIKTIONARY.key: {
         dispatch({ type: 'LOAD_INFO', payload: { displayType: 'wiktionary' } });
         const response = await lookupWiktionary(currentWord);
         dispatch({ 
@@ -63,7 +104,7 @@ export function useLearningModeKeyPress({
         return true;
       }
 
-      case 'KeyR': {
+      case KEY_MAPPINGS.LEARNING_MODE.DETECT_PHRASES.key: {
         dispatch({ type: 'LOAD_INFO', payload: { displayType: 'phraseDetection' } });
         
         let phrases: string[] = [];
@@ -88,11 +129,12 @@ export function useLearningModeKeyPress({
       default:
         return false;
     }
-  }, [currentWordIndex, tokenizationInfo, dispatch, setIsLearningMode]);
+  }, [currentWordIndex, furthestWordIndex, tokenizationInfo, dispatch, setIsLearningMode]);
 }
 
 export function useNavigationModeKeyPress({
   currentWordIndex,
+  furthestWordIndex,
   tokenizationInfo,
   dispatch,
   updateWordStats,
@@ -106,17 +148,28 @@ export function useNavigationModeKeyPress({
     const currentWordText = getOriginalTextForToken(tokenizationInfo.text, currentLearnableToken).toLowerCase();
 
     switch (event.code) {
-      case 'KeyE': {
-        updateWordStats(currentWordText, true);
-        dispatch({ type: 'SET_FLASH_STATE', payload: 'green' });
+      case KEY_MAPPINGS.NAVIGATION_MODE.ADVANCE.key: {
+        if (currentWordIndex >= furthestWordIndex) {
+          updateWordStats(currentWordText, true);
+          dispatch({ type: 'SET_FLASH_STATE', payload: 'green' });
+        }
+        
         setTimeout(() => {
           dispatch({ type: 'ADVANCE', payload: { wordCount: learnableWords.length } });
-        }, 100);
+        }, currentWordIndex >= furthestWordIndex ? 100 : 0);
         return true;
       }
 
-      case 'KeyQ': {
-        updateWordStats(currentWordText, false);
+      case KEY_MAPPINGS.NAVIGATION_MODE.GO_BACK.key: {
+        dispatch({ type: 'NAVIGATE_BACK' });
+        return true;
+      }
+
+      case KEY_MAPPINGS.NAVIGATION_MODE.TRANSLATE_WORD.key: {
+        if (currentWordIndex >= furthestWordIndex) {
+          updateWordStats(currentWordText, false);
+        }
+        
         dispatch({ type: 'LOAD_INFO', payload: { displayType: 'wordTranslation' } });
         
         const response = await translateWord(
@@ -137,7 +190,7 @@ export function useNavigationModeKeyPress({
       default:
         return false;
     }
-  }, [currentWordIndex, tokenizationInfo, dispatch, updateWordStats, setIsLearningMode]);
+  }, [currentWordIndex, furthestWordIndex, tokenizationInfo, dispatch, updateWordStats, setIsLearningMode]);
 }
 
 export function useKeyboardNavigation(
@@ -152,7 +205,6 @@ export function useKeyboardNavigation(
       const learnableWords = getLearnableWords(config.tokenizationInfo.tokens);
       const wordCount = learnableWords.length;
 
-      // Early return if we're at the end
       if (wordCount === 0 || 
           (config.currentWordIndex >= wordCount && 
            !(config.currentWordIndex === 0 && wordCount === 0))) {
@@ -161,7 +213,13 @@ export function useKeyboardNavigation(
         }
       }
 
-      if (event.code in ['KeyE', 'KeyQ', 'KeyW', 'KeyR']) {
+      // Get all possible keys that should be handled
+      const allHandledKeys: string[] = [
+        ...Object.values(KEY_MAPPINGS.NAVIGATION_MODE).map(action => action.key),
+        ...Object.values(KEY_MAPPINGS.LEARNING_MODE).map(action => action.key)
+      ];
+
+      if (allHandledKeys.includes(event.code)) {
         event.preventDefault();
       }
 

@@ -14,7 +14,8 @@ export type FlashType = 'none' | 'green' | 'red';
 export function getCurrentTokenStyle(
   isWord: boolean, 
   currentWordCounter: number, 
-  currentWordIndex: number, 
+  currentWordIndex: number,
+  furthestWordIndex: number,
   flashState: FlashType
 ): string {
   let className = 'transition-all duration-200 ';
@@ -30,7 +31,7 @@ export function getCurrentTokenStyle(
     } else {
       className += 'bg-yellow-200 px-1 rounded scale-105 shadow-sm ';
     }
-  } else if (currentWordCounter < currentWordIndex) {
+  } else if (currentWordCounter < furthestWordIndex) {
     className += 'text-gray-400 ';
   }
   
