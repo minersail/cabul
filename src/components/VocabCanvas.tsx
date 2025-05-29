@@ -102,19 +102,27 @@ export default function VocabCanvas({
   
   return (
     <div className="flex-grow relative">
-      <div className="relative p-6 bg-gray-50 rounded-lg font-serif text-lg leading-relaxed">
-        <div className="absolute top-2 right-2 text-sm text-gray-500">
-          Word {wordCount > 0 ? state.currentWordIndex + 1 : 0} of {wordCount} 
-          (Tokens: {allTokens.length})
+      {/* Main Article Content */}
+      <div className="p-6" style={{ backgroundColor: '#f8f7f2', color: '#2f2f2f' }}>
+
+        {/* Single Column Article Content */}
+        <div className="text-base leading-relaxed text-justify" style={{ fontFamily: 'var(--font-crimson-text)', color: '#2f2f2f' }}>
+          <div className="whitespace-pre-wrap">
+            {renderedTextElements}
+          </div>
         </div>
-        <div className="mt-4 whitespace-pre-wrap">
-          {renderedTextElements}
-        </div>
+      </div>      
         
-        <div className="mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
+      {/* Progress Bar */}
+      <div className="bg-black text-white py-1 px-4">
+        <div className="flex justify-between items-center text-xs font-bold" style={{ fontFamily: 'var(--font-crimson-text)' }}>
+          <span>LEARNING PROGRESS</span>
+          <span>Words: {wordCount} • Tokens: {allTokens.length}</span>
+        </div>
+        <div className="mt-1 h-1 bg-gray-600 rounded-sm overflow-hidden">
           <div 
-            className="h-full bg-blue-500 transition-all duration-300"
-            style={{ width: wordCount > 0 ? `${(state.currentWordIndex / Math.max(1, wordCount -1)) * 100}%` : '0%' }}
+            className="h-full bg-yellow-400 transition-all duration-300"
+            style={{ width: `${(state.furthestWordIndex / wordCount) * 100}%` }}
           />
         </div>
       </div>

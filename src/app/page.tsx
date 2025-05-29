@@ -1,5 +1,6 @@
 import VocabStats from "@/components/VocabStats";
 import ArticleLoader from "@/components/ArticleLoader";
+import NewspaperHeader from "@/components/NewspaperHeader";
 
 async function getRedditPosts() {
   const NUMBER_OF_POSTS = 15;
@@ -54,14 +55,15 @@ export default async function Home() {
   const posts = await getRedditPosts();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto space-y-8 p-8">
-        <header className="text-center space-y-2">
-          <h1 className="text-4xl font-bold text-gray-800">French Vocabulary Practice</h1>
-          <p className="text-gray-600">Improve your French vocabulary with Reddit posts from r/France</p>
-        </header>
+    <div className="min-h-screen" style={{ backgroundColor: '#f8f7f2' }}>
+      <div className="max-w-6xl mx-auto">
+        {/* Newspaper Masthead */}
+        <NewspaperHeader />
 
-        <ArticleLoader posts={posts} />
+        {/* Main Content */}
+        <div className="p-8">
+          <ArticleLoader posts={posts} />
+        </div>
       </div>
     </div>
   );
