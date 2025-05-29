@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DependencyTree from '@/components/DependencyTree';
 import { SpaCyToken } from '@/types/tokenization';
 
@@ -25,6 +25,15 @@ export default function TokenizePage() {
   const [result, setResult] = useState<TokenizationResult | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check for content in URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const contentParam = urlParams.get('content');
+    if (contentParam) {
+      setText(decodeURIComponent(contentParam));
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

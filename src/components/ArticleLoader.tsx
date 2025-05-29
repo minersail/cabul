@@ -16,8 +16,31 @@ interface RedditPost {
   author: string;
 }
 
+interface LeMondeArticle {
+  title: string;
+  content: string;
+  url: string;
+  description: string;
+  author: string;
+  publishDate: string;
+  wordCount: number;
+}
+
+// Unified article type
+interface Article {
+  title: string;
+  content: string;
+  url: string;
+  author: string;
+  // Optional fields for different sources
+  score?: number; // Reddit only
+  description?: string; // Le Monde only
+  publishDate?: string; // Le Monde only
+  wordCount?: number; // Le Monde only
+}
+
 interface ArticleLoaderProps {
-  posts: RedditPost[];
+  posts?: RedditPost[];
 }
 
 // Type for our word stats
@@ -30,11 +53,75 @@ function getWordStats(): Record<string, WordStats> {
   return stats ? JSON.parse(stats) : {};
 }
 
-export default function ArticleLoader({ posts }: ArticleLoaderProps) {
+async function getRedditPosts(): Promise<RedditPost[]> {
+  try {
+    const response = await fetch('/api/scrape/reddit', {
+      cache: 'no-store', // Ensure fresh data on each request
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Reddit posts: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch Reddit posts');
+    }
+
+    return data.posts;
+
+  } catch (error) {
+    console.error('Error fetching Reddit posts:', error);
+    return [];
+  }
+}
+
+async function getRandomLeMondeArticle(): Promise<LeMondeArticle | null> {
+  try {
+    const response = await fetch('/api/scrape/lemonde', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        action: 'getRandomArticle'
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch random Le Monde article: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch random Le Monde article');
+    }
+
+    return {
+      title: data.title,
+      content: data.content,
+      url: data.url,
+      description: data.description,
+      author: data.author,
+      publishDate: data.publishDate,
+      wordCount: data.wordCount
+    };
+
+  } catch (error) {
+    console.error('Error fetching random Le Monde article:', error);
+    return null;
+  }
+}
+
+export default function ArticleLoader({ posts: initialPosts }: ArticleLoaderProps) {
   const [currentPostIndex, setCurrentPostIndex] = useState(0);
+  const [posts, setPosts] = useState<RedditPost[]>(initialPosts || []);
+  const [currentLeMondeArticle, setCurrentLeMondeArticle] = useState<LeMondeArticle | null>(null);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(!initialPosts);
+  const [isLoadingLeMondeArticle, setIsLoadingLeMondeArticle] = useState(false);
   const [wordStats, setWordStats] = useState<Record<string, WordStats>>({});
-  const [isWordStatsLoaded, setIsWordStatsLoaded] = useState(false);
-  const [enableCompositionality, setEnableCompositionality] = useState(false);
   const [isLearningMode, setIsLearningMode] = useState(false);
   const [tokenizationResult, setTokenizationResult] = useState<SpaCyTokenizationResponse | null>(null);
   const [isTokenizing, setIsTokenizing] = useState(false);
@@ -46,7 +133,10 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
   const [isSidebarPanelOpen, setIsSidebarPanelOpen] = useState(true);
   const [isVocabStatsOpen, setIsVocabStatsOpen] = useState(false);
 
-  const currentPost = posts.length > 0 ? posts[currentPostIndex] : null;
+  // Get current article based on useReddit setting
+  const currentArticle: Article | null = useReddit 
+    ? (posts.length > 0 ? posts[currentPostIndex] : null)
+    : currentLeMondeArticle;
 
   // Calculate progress info
   const allTokens = tokenizationResult?.tokens || [];
@@ -57,11 +147,48 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
   useEffect(() => {
     const stats = getWordStats();
     setWordStats(stats);
-    setIsWordStatsLoaded(true);
   }, []);
 
+  // Fetch Reddit posts if none were provided as props
   useEffect(() => {
-    if (currentPost) {
+    if (!initialPosts && useReddit) {
+      const fetchPosts = async () => {
+        setIsLoadingPosts(true);
+        try {
+          const fetchedPosts = await getRedditPosts();
+          setPosts(fetchedPosts);
+        } catch (error) {
+          console.error('Failed to fetch Reddit posts:', error);
+          setPosts([]);
+        } finally {
+          setIsLoadingPosts(false);
+        }
+      };
+      fetchPosts();
+    }
+  }, [initialPosts, useReddit]);
+
+  // Fetch Le Monde article when switching to Le Monde mode
+  useEffect(() => {
+    if (!useReddit && !currentLeMondeArticle) {
+      const fetchLeMondeArticle = async () => {
+        setIsLoadingLeMondeArticle(true);
+        try {
+          const article = await getRandomLeMondeArticle();
+          setCurrentLeMondeArticle(article);
+        } catch (error) {
+          console.error('Failed to fetch Le Monde article:', error);
+          setCurrentLeMondeArticle(null);
+        } finally {
+          setIsLoadingLeMondeArticle(false);
+        }
+      };
+      fetchLeMondeArticle();
+    }
+  }, [useReddit, currentLeMondeArticle]);
+
+  useEffect(() => {
+    if (currentArticle) {
       const fetchTokenization = async () => {
         setIsTokenizing(true);
         setTokenizationResult(null);
@@ -71,7 +198,7 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              text: currentPost.content,
+              text: currentArticle.content,
               parameters: {
                 mode: 'full',
                 include_entities: true,
@@ -107,13 +234,27 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
       setTokenizationResult(null); 
       setTokenizationError(null);
     }
-  }, [currentPost]);
+  }, [currentArticle]);
 
-  const handleNextArticle = () => {
-    setCurrentPostIndex((prev) => (prev + 1) % posts.length);
+  const handleNextArticle = async () => {
+    if (useReddit) {
+      // Reddit mode: cycle through cached posts
+      setCurrentPostIndex((prev) => (prev + 1) % posts.length);
+    } else {
+      // Le Monde mode: fetch a new random article
+      setIsLoadingLeMondeArticle(true);
+      try {
+        const newArticle = await getRandomLeMondeArticle();
+        setCurrentLeMondeArticle(newArticle);
+      } catch (error) {
+        console.error('Failed to fetch next Le Monde article:', error);
+      } finally {
+        setIsLoadingLeMondeArticle(false);
+      }
+    }
     setTokenizationResult(null);
     setTokenizationError(null);
-  }; 
+  };
 
   // Helper function to update word stats
   const updateWordStats = (word: string, wasCorrect: boolean) => {
@@ -124,16 +265,34 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
     setWordStats(stats);
   }
 
-  if (posts.length === 0) {
+  if (isLoadingPosts || isLoadingLeMondeArticle) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-sm text-center">
-        <p className="text-gray-600">No articles available at the moment. Please try again later.</p>
+        <p className="text-gray-600">
+          {useReddit ? 'Loading articles...' : 'Loading Le Monde article...'}
+        </p>
       </div>
     );
   }
-  
-  if (!currentPost) {
-    return <p>Loading post...</p>;
+
+  if (useReddit && posts.length === 0) {
+    return (
+      <div className="p-6 bg-white rounded-lg shadow-sm text-center">
+        <p className="text-gray-600">No Reddit articles available at the moment. Please try again later.</p>
+      </div>
+    );
+  }
+
+  if (!useReddit && !currentLeMondeArticle) {
+    return (
+      <div className="p-6 bg-white rounded-lg shadow-sm text-center">
+        <p className="text-gray-600">No Le Monde article available at the moment. Please try again later.</p>
+      </div>
+    );
+  }
+
+  if (!currentArticle) {
+    return <p>Loading article...</p>;
   }
 
   return (
@@ -146,21 +305,36 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
             {/* Article Title Section */}
             <div className="p-6 border-b border-gray-300" style={{ backgroundColor: '#f8f7f2' }}>
               <div className="border-l-4 border-[#2f2f2f] pl-4">
-                <h2 className="text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-playfair-display)', color: '#2f2f2f' }}>
-                  {currentPost.title}
-                </h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-playfair-display)', color: '#2f2f2f' }}>
+                    {currentArticle.title}
+                  </h2>
+                  <span className={`px-2 py-1 text-xs rounded-full ${useReddit ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {useReddit ? 'Reddit' : 'Le Monde'}
+                  </span>
+                </div>
                 <div className="flex items-center text-sm text-gray-600 space-x-2" style={{ fontFamily: 'var(--font-crimson-text)' }}>
-                  <span>By {currentPost.author}</span>
+                  <span>By {currentArticle.author}</span>
                   <span>•</span>
-                  <span>{currentPost.score} points</span>
-                  <span>•</span>
+                  {useReddit && currentArticle.score && (
+                    <>
+                      <span>{currentArticle.score} points</span>
+                      <span>•</span>
+                    </>
+                  )}
+                  {!useReddit && currentArticle.publishDate && (
+                    <>
+                      <span>{currentArticle.publishDate}</span>
+                      <span>•</span>
+                    </>
+                  )}
                   <a 
-                    href={currentPost.url}
+                    href={currentArticle.url}
                     className="text-blue-600 hover:text-blue-800 flex items-center"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    View on Reddit 
+                    {useReddit ? 'View on Reddit' : 'View on Le Monde'}
                     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
@@ -185,8 +359,8 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
 
             {!isTokenizing && !tokenizationError && tokenizationResult && (
               <VocabCanvas 
-                key={currentPostIndex} 
-                content={currentPost.content}
+                key={currentArticle.url} 
+                content={currentArticle.content}
                 tokenizationInfo={tokenizationResult}
                 updateWordStats={updateWordStats} 
                 isLearningMode={isLearningMode}

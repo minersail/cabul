@@ -18,8 +18,8 @@ export default function NewspaperHeader() {
   return (
     <div className="bg-[f8f7f2]">
       <div className="text-center py-6 px-6">
-        <div className="border-t-2 border-b-2 border-black py-3">
-          <h1 className="text-5xl font-bold tracking-wider text-black" style={{ fontFamily: 'var(--font-playfair-display)' }}>
+        <div className="border-t-2 border-b-2 border-[2f2f2f] py-3">
+          <h1 className="text-5xl font-bold tracking-wider text-[2f2f2f]" style={{ fontFamily: 'var(--font-playfair-display)' }}>
             THE VOCAB HERALD
           </h1>
           <div className="flex justify-between items-center mt-3 text-xs" style={{ fontFamily: 'var(--font-crimson-text)' }}>
