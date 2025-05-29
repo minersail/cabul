@@ -146,7 +146,6 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
                 content={currentPost.content}
                 tokenizationInfo={tokenizationResult}
                 updateWordStats={updateWordStats} 
-                enableCompositionality={enableCompositionality} 
                 isLearningMode={isLearningMode}
                 setIsLearningMode={setIsLearningMode as Dispatch<boolean>}
               />
@@ -190,7 +189,6 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
         </div>
         
         <InstructionPane 
-          enableCompositionality={enableCompositionality}
           isLearningMode={isLearningMode}
         />
       </div>

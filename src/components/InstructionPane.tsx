@@ -9,11 +9,10 @@ const walterTurncoat = Walter_Turncoat({
 });
 
 export interface InstructionPaneProps {
-  enableCompositionality: boolean;
   isLearningMode: boolean;
 }
 
-export default function InstructionPane({ enableCompositionality, isLearningMode }: InstructionPaneProps) {
+export default function InstructionPane({ isLearningMode }: InstructionPaneProps) {
   return (
     <div className="w-64 shrink-0">
       <div className="sticky top-4 rounded-lg border-[6px] border-[#8B4513] shadow-xl overflow-hidden"
@@ -159,19 +158,6 @@ export default function InstructionPane({ enableCompositionality, isLearningMode
                   <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
               </>
-            )}
-
-            {enableCompositionality && (
-              <div className="mt-8 pt-4 border-t border-white/20 relative">
-                <p className={`${walterTurncoat.className} text-white/70 text-xs italic`}
-                   style={{
-                     textShadow: '0 0 2px rgba(255,255,255,0.3)',
-                     letterSpacing: '0.5px'
-                   }}>
-                  Compositionality scores show how predictable a word&apos;s meaning is from its parts.
-                </p>
-                <div className="absolute -top-2 left-2 text-white/40 text-xs">• • •</div>
-              </div>
             )}
           </div>
         </div>
