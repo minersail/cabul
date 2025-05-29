@@ -278,8 +278,7 @@ export default function ArticleLoader({ posts }: ArticleLoaderProps) {
           className="w-full p-4 text-left hover:bg-gray-200 transition-colors"
           style={{ fontFamily: 'var(--font-playfair-display)' }}
         >
-          <div className="flex justify-between items-center">
-            <span className="font-bold text-lg" style={{ color: '#2f2f2f' }}>VOCABULARY STATISTICS</span>
+          <div className="flex justify-center items-center">
             <svg 
               className={`w-5 h-5 transition-transform duration-300 ${isVocabStatsOpen ? 'rotate-180' : ''}`} 
               fill="none" 

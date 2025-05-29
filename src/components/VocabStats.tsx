@@ -61,73 +61,161 @@ export default function VocabStats({ wordStats }: { wordStats: Record<string, [n
 
   if (stats.length === 0) {
     return (
-      <div className="p-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Vocabulary Statistics</h2>
-        <p className="text-gray-500">No vocabulary data available yet. Start practicing to see your stats!</p>
+      <div 
+        className="p-6 relative"
+        style={{ 
+          backgroundColor: '#fefefe',
+          backgroundImage: `
+            linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
+          `,
+          backgroundSize: '20px 20px'
+        }}
+      >
+        <div className="text-center" style={{ fontFamily: 'var(--font-pangolin)', color: '#374151' }}>
+          <h3 className="text-lg mb-4 transform -rotate-1">📝 Vocabulary Progress Sheet</h3>
+          <p className="transform rotate-1">No words practiced yet... Start learning to fill this page!</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Vocabulary Statistics</h2>
-        <button onClick={handleClearStats} className="text-red-500 hover:text-red-700 text-sm underline">Clear Stats</button>
+    <div 
+      className="p-6 relative"
+      style={{ 
+        backgroundColor: '#fefefe',
+        backgroundImage: `
+          linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
+        `,
+        backgroundSize: '20px 20px'
+      }}
+    >
+      {/* Hand-drawn title */}
+      <div className="mb-6 relative">
+        <h3 
+          className="text-xl mb-2 transform -rotate-1" 
+          style={{ 
+            fontFamily: 'var(--font-pangolin)', 
+            color: '#374151',
+            textShadow: '1px 1px 0px rgba(0,0,0,0.1)'
+          }}
+        >
+          📝 Vocabulary Statistics
+        </h3>
+        <button 
+          onClick={handleClearStats} 
+          className="absolute top-0 right-0 text-xs transform rotate-2 hover:rotate-0 transition-transform"
+          style={{ 
+            fontFamily: 'var(--font-pangolin)', 
+            color: '#ef4444',
+            cursor: 'pointer'
+          }}
+        >
+          ✗ erase all
+        </button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b-2 border-gray-200">
-              <th 
-                className="py-2 px-4 text-left cursor-pointer hover:bg-gray-50"
-                onClick={() => handleSort('word')}
-              >
-                Word {sortBy === 'word' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </th>
-              <th 
-                className="py-2 px-4 text-left cursor-pointer hover:bg-gray-50"
-                onClick={() => handleSort('total')}
-              >
-                Encounters {sortBy === 'total' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </th>
-              <th 
-                className="py-2 px-4 text-left cursor-pointer hover:bg-gray-50"
-                onClick={() => handleSort('percentage')}
-              >
-                Success Rate {sortBy === 'percentage' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.map((stat) => (
-              <tr key={stat.word} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-2 px-4 font-medium">{stat.word}</td>
-                <td className="py-2 px-4">
-                  <div className="flex items-center">
-                    <span className="mr-2">{stat.total}</span>
-                    <span className="text-sm text-gray-500">({stat.correct} correct)</span>
-                  </div>
-                </td>
-                <td className="py-2 px-4">
-                  <div className="flex items-center">
-                    <div className="w-24 h-2 bg-gray-200 rounded-full mr-2">
-                      <div 
-                        className={`h-full rounded-full ${
-                          stat.percentage >= 80 ? 'bg-green-500' :
-                          stat.percentage >= 60 ? 'bg-yellow-500' :
-                          'bg-red-500'
-                        }`}
-                        style={{ width: `${stat.percentage}%` }}
-                      />
-                    </div>
-                    <span>{stat.percentage}%</span>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {/* Hand-drawn headers */}
+      <div className="mb-4 grid grid-cols-3 gap-4">
+        <div 
+          className="cursor-pointer transform hover:-rotate-1 transition-transform"
+          onClick={() => handleSort('word')}
+          style={{ fontFamily: 'var(--font-pangolin)', color: '#374151' }}
+        >
+          <span className="underline decoration-wavy">Word</span>
+          {sortBy === 'word' && <span className="ml-1">{sortOrder === 'asc' ? '↗️' : '↘️'}</span>}
+        </div>
+        <div 
+          className="cursor-pointer transform hover:rotate-1 transition-transform"
+          onClick={() => handleSort('total')}
+          style={{ fontFamily: 'var(--font-pangolin)', color: '#374151' }}
+        >
+          <span className="underline decoration-wavy">Times Seen</span>
+          {sortBy === 'total' && <span className="ml-1">{sortOrder === 'asc' ? '↗️' : '↘️'}</span>}
+        </div>
+        <div 
+          className="cursor-pointer transform hover:-rotate-1 transition-transform"
+          onClick={() => handleSort('percentage')}
+          style={{ fontFamily: 'var(--font-pangolin)', color: '#374151' }}
+        >
+          <span className="underline decoration-wavy">Success Rate</span>
+          {sortBy === 'percentage' && <span className="ml-1">{sortOrder === 'asc' ? '↗️' : '↘️'}</span>}
+        </div>
       </div>
+
+      {/* Hand-drawn vocabulary entries */}
+      <div className="space-y-3">
+        {stats.map((stat, index) => (
+          <div 
+            key={stat.word} 
+            className={`grid grid-cols-3 gap-4 py-2 transform ${index % 2 === 0 ? 'rotate-0' : '-rotate-0'} hover:rotate-0 transition-transform`}
+            style={{ 
+              borderBottom: '1px dashed rgba(107, 114, 128, 0.3)',
+              fontFamily: 'var(--font-pangolin)',
+              color: '#374151'
+            }}
+          >
+            {/* Word */}
+            <div className="font-medium transform hover:scale-105 transition-transform">
+              {stat.word}
+            </div>
+            
+            {/* Encounters */}
+            <div className="flex items-center space-x-2">
+              <span>{stat.total}</span>
+              <span className="text-xs text-gray-500 transform -rotate-1">
+                ({stat.correct} ✓)
+              </span>
+            </div>
+            
+            {/* Hand-drawn progress bar */}
+            <div className="flex items-center space-x-2">
+              <div className="relative w-20 h-3">
+                {/* Background "pencil marks" */}
+                <div 
+                  className="absolute inset-0 border-2 border-dashed"
+                  style={{ 
+                    borderColor: '#d1d5db',
+                    transform: 'rotate(-1deg)'
+                  }}
+                />
+                {/* Fill "pencil shading" */}
+                <div 
+                  className="absolute top-0 left-0 h-full"
+                  style={{ 
+                    width: `${stat.percentage}%`,
+                    background: stat.percentage >= 80 
+                      ? 'repeating-linear-gradient(45deg, #10b981, #10b981 2px, #059669 2px, #059669 4px)'
+                      : stat.percentage >= 60 
+                      ? 'repeating-linear-gradient(45deg, #f59e0b, #f59e0b 2px, #d97706 2px, #d97706 4px)'
+                      : 'repeating-linear-gradient(45deg, #ef4444, #ef4444 2px, #dc2626 2px, #dc2626 4px)',
+                    transform: 'rotate(1deg)',
+                    clipPath: 'polygon(0 20%, 100% 0%, 100% 80%, 0% 100%)'
+                  }}
+                />
+              </div>
+              <span className="text-sm transform rotate-1">
+                {stat.percentage}%
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Hand-drawn decorative elements */}
+      <div className="absolute top-2 left-2 text-blue-400 opacity-30 transform rotate-12">
+        📐
+      </div>
+      <div className="absolute bottom-2 right-2 text-blue-400 opacity-30 transform -rotate-12">
+        ✏️
+      </div>
+      
+      {/* Paper holes */}
+      <div className="absolute left-0 top-1/4 w-2 h-2 bg-white border border-blue-200 rounded-full"></div>
+      <div className="absolute left-0 top-2/4 w-2 h-2 bg-white border border-blue-200 rounded-full"></div>
+      <div className="absolute left-0 top-3/4 w-2 h-2 bg-white border border-blue-200 rounded-full"></div>
     </div>
   );
 } 
