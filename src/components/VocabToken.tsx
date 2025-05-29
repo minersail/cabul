@@ -293,32 +293,170 @@ function WiktionaryDisplay({ info, isLoading }: { info?: WiktionaryInfo, isLoadi
 }
 
 /**
- * Component to display phrase detection information (stub)
+ * Component to display phrase detection information (highlighter strip effect)
  */
 function PhraseDetectionDisplay({ info, isLoading }: { info?: PhraseDetectionInfo, isLoading: boolean }) {
-  if (!info) {
+  if (isLoading) {
     return (
-      <div className="bg-green-50 shadow-lg px-3 py-2 border-t-6 border-green-200 text-left min-w-[200px]">
-        <p className="text-sm text-gray-700">Error fetching phrase detection</p>
+      <div className="relative min-w-[250px] max-w-[350px]">
+        {/* Highlighter strip background */}
+        <div className="relative px-4 py-3 rounded-sm"
+             style={{
+               background: 'linear-gradient(135deg, rgba(255,235,59,0.85) 0%, rgba(255,241,118,0.85) 50%, rgba(255,235,59,0.85) 100%)',
+               boxShadow: `
+                 0 2px 8px rgba(255,193,7,0.3),
+                 inset 0 1px 0 rgba(255,255,255,0.2),
+                 inset 0 -1px 0 rgba(255,193,7,0.2)
+               `,
+               transform: 'rotate(-0.5deg)',
+               border: '1px solid rgba(255,193,7,0.3)',
+             }}>
+          
+          {/* Highlighter texture overlay */}
+          <div className="absolute inset-0 opacity-20"
+               style={{
+                 background: `
+                   repeating-linear-gradient(
+                     45deg,
+                     transparent 0px,
+                     transparent 2px,
+                     rgba(255,193,7,0.1) 2px,
+                     rgba(255,193,7,0.1) 4px
+                   )
+                 `,
+               }}>
+          </div>
+          
+          <div className="relative z-10">
+            <div className="animate-pulse space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-yellow-400 opacity-60 rounded"></div>
+                <div className="h-3 bg-yellow-600 opacity-60 rounded w-1/3"></div>
+              </div>
+              <div className="h-3 bg-yellow-600 opacity-60 rounded w-2/3"></div>
+            </div>
+          </div>
+          
+          {/* Highlighter cap effect */}
+          <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-2 h-8 bg-yellow-400 rounded-r-full opacity-70"></div>
+        </div>
       </div>
     );
   }
+
+  if (!info) {
+    return (
+      <div className="relative min-w-[250px] max-w-[350px]">
+        {/* Highlighter strip background */}
+        <div className="relative px-4 py-3 rounded-sm"
+             style={{
+               background: 'linear-gradient(135deg, rgba(255,87,87,0.85) 0%, rgba(255,118,118,0.85) 50%, rgba(255,87,87,0.85) 100%)',
+               boxShadow: `
+                 0 2px 8px rgba(244,67,54,0.3),
+                 inset 0 1px 0 rgba(255,255,255,0.2),
+                 inset 0 -1px 0 rgba(244,67,54,0.2)
+               `,
+               transform: 'rotate(0.5deg)',
+               border: '1px solid rgba(244,67,54,0.3)',
+             }}>
+          
+          <div className="relative z-10">
+            <p className="text-sm text-red-800 font-medium">
+              Error analyzing phrases
+            </p>
+          </div>
+          
+          {/* Highlighter cap effect */}
+          <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-2 h-8 bg-red-400 rounded-r-full opacity-70"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-green-50 shadow-lg px-3 py-2 border-t-6 border-green-200 text-left min-w-[200px]">
-      {isLoading ? (
-        <p className="text-sm text-gray-700">Analyzing phrases...</p>
-      ) : (
-        <>
-          <p className="text-xs font-medium text-green-700 mb-1">Phrase</p>
-          <div className="text-sm text-gray-700">
-            {info.phrases.length > 0 && (
-              <p>
-                {info.phrases.join('\r\n')}
+    <div className="relative min-w-[250px] max-w-[350px]">
+      {/* Highlighter strip background */}
+      <div className="relative px-4 py-3 rounded-sm"
+           style={{
+             background: 'linear-gradient(135deg, rgba(129,199,132,0.85) 0%, rgba(165,214,167,0.85) 50%, rgba(129,199,132,0.85) 100%)',
+             boxShadow: `
+               0 2px 8px rgba(76,175,80,0.3),
+               inset 0 1px 0 rgba(255,255,255,0.2),
+               inset 0 -1px 0 rgba(76,175,80,0.2)
+             `,
+             transform: 'rotate(-0.8deg)',
+             border: '1px solid rgba(76,175,80,0.3)',
+           }}>
+        
+        {/* Highlighter texture overlay */}
+        <div className="absolute inset-0 opacity-15"
+             style={{
+               background: `
+                 repeating-linear-gradient(
+                   45deg,
+                   transparent 0px,
+                   transparent 2px,
+                   rgba(76,175,80,0.1) 2px,
+                   rgba(76,175,80,0.1) 4px
+                 )
+               `,
+             }}>
+        </div>
+        
+        {/* Ink bleed effect at edges */}
+        <div className="absolute inset-0 opacity-10"
+             style={{
+               background: `
+                 radial-gradient(ellipse at left, rgba(76,175,80,0.4) 0%, transparent 70%),
+                 radial-gradient(ellipse at right, rgba(76,175,80,0.4) 0%, transparent 70%)
+               `,
+             }}>
+        </div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2">
+            {/* Highlighter icon */}
+            <div className="flex items-center">
+              <div className="w-1 h-4 bg-green-600 rounded-full"></div>
+              <div className="w-3 h-3 bg-green-500 rounded-r-full ml-0.5"></div>
+            </div>
+            <p className="text-xs font-medium text-green-800 uppercase tracking-wider">
+              Detected Phrases
+            </p>
+          </div>
+          
+          <div className="space-y-1">
+            {info.phrases.length > 0 ? (
+              info.phrases.map((phrase, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full flex-shrink-0"></div>
+                  <p className="text-sm text-green-800 font-medium leading-tight">
+                    "{phrase}"
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-green-700 italic">
+                No phrases detected
               </p>
             )}
           </div>
-        </>
-      )}
+          
+          {/* Original word reference */}
+          <div className="mt-2 pt-2 border-t border-green-300 border-opacity-50">
+            <p className="text-xs text-green-700 opacity-80">
+              in context of: <span className="font-medium">"{info.originalWord}"</span>
+            </p>
+          </div>
+        </div>
+        
+        {/* Highlighter cap effect */}
+        <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-2 h-8 bg-green-400 rounded-r-full opacity-70"
+             style={{
+               boxShadow: 'inset 1px 0 2px rgba(76,175,80,0.3)'
+             }}>
+        </div>
+      </div>
     </div>
   );
 }

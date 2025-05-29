@@ -29,12 +29,43 @@ export default function OptionsPane({
              style={{
                background: '#ffffff',
                boxShadow: `
-                 inset 0 0 40px rgba(0,0,0,0.1)
+                 inset 0 0 40px rgba(0,0,0,0.1),
+                 inset 0 0 80px rgba(0,0,0,0.05)
                `,
              }}>
-          <div className="p-6 relative">
-            {/* Subtle texture */}
-            <div className="absolute inset-0 opacity-[0.02]" 
+          
+          {/* Black corner pieces (typical of real whiteboards) */}
+          <div className="absolute top-0 left-0 w-3 h-3 bg-black rounded-br-lg opacity-80"></div>
+          <div className="absolute top-0 right-0 w-3 h-3 bg-black rounded-bl-lg opacity-80"></div>
+          <div className="absolute bottom-0 left-0 w-3 h-3 bg-black rounded-tr-lg opacity-80"></div>
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-black rounded-tl-lg opacity-80"></div>
+          
+          {/* Marker smudge textures */}
+          <div className="absolute inset-0 opacity-[0.03]" 
+               style={{
+                 background: `
+                   radial-gradient(ellipse 120px 80px at 20% 30%, rgba(100,100,100,0.8) 0%, transparent 60%),
+                   radial-gradient(ellipse 80px 60px at 80% 70%, rgba(150,150,150,0.6) 0%, transparent 50%),
+                   radial-gradient(ellipse 100px 40px at 60% 20%, rgba(120,120,120,0.4) 0%, transparent 70%),
+                   radial-gradient(ellipse 60px 90px at 30% 80%, rgba(110,110,110,0.5) 0%, transparent 60%)
+                 `
+               }}>
+          </div>
+          
+          {/* Additional subtle marker streaks */}
+          <div className="absolute inset-0 opacity-[0.02]" 
+               style={{
+                 background: `
+                   linear-gradient(25deg, transparent 40%, rgba(100,100,100,0.3) 42%, rgba(100,100,100,0.3) 44%, transparent 46%),
+                   linear-gradient(-15deg, transparent 60%, rgba(120,120,120,0.2) 62%, rgba(120,120,120,0.2) 63%, transparent 65%),
+                   linear-gradient(70deg, transparent 20%, rgba(90,90,90,0.25) 22%, rgba(90,90,90,0.25) 24%, transparent 26%)
+                 `
+               }}>
+          </div>
+          
+          <div className="p-6 relative z-10">
+            {/* Very subtle paper-like texture */}
+            <div className="absolute inset-0 opacity-[0.015]" 
                  style={{
                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23000000' fill-opacity='1' fill-rule='evenodd'/%3E%3C/svg%3E")`,
                    backgroundSize: '150px 150px',
@@ -42,7 +73,7 @@ export default function OptionsPane({
             </div>
             
             {/* Options with expo marker effect */}
-            <div className="space-y-4 relative z-10">
+            <div className="space-y-4 relative z-20">
               <div className="relative group">
                 <div className="absolute inset-0 bg-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded"></div>
                 <label htmlFor="useReddit" className="relative z-20 flex items-center gap-3 cursor-pointer">
