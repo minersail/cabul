@@ -26,7 +26,7 @@ function getErrorStyle(message: Message): string {
   return message.error ? "text-red-500" : "text-gray-500";
 }
 
-export const MAX_LEMONDE_ARTICLES = 10;
+export const MAX_LEMONDE_ARTICLES = 3;
 
 export default function ArticleLoader() {
   const [state, dispatch] = useReducer(articleLoaderReducer, initialState);
@@ -64,7 +64,7 @@ export default function ArticleLoader() {
       };
       fetchArticles();
     }
-  }, [state.userConfig.articleSource, currentArticle]);
+  }, [state.userConfig.articleSource, currentArticle, state.articles]);
 
   // Tokenization effect
   useEffect(() => {
@@ -102,11 +102,11 @@ export default function ArticleLoader() {
           )}
 
           {/* Article Container */}
-          { !state.uiState.isLoading && currentArticle !== null && (
-            <div style={{ backgroundColor: '#f8f7f2' }}>
-              
-              {/* Article Title Section */}
-              <div className="p-6 border-b border-gray-300" style={{ backgroundColor: '#f8f7f2' }}>
+          <div style={{ backgroundColor: '#f8f7f2' }}>
+            { !state.uiState.isLoading && currentArticle !== null && (
+              <div>
+                {/* Article Title Section */}
+                <div className="p-6 border-b border-gray-300" style={{ backgroundColor: '#f8f7f2' }}>
                 <div className="border-l-4 border-[#2f2f2f] pl-4">
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-playfair-display)', color: '#2f2f2f' }}>
@@ -163,31 +163,31 @@ export default function ArticleLoader() {
                   setIsLearningMode={(mode: boolean) => dispatch({ type: 'SET_LEARNING_MODE', payload: { isLearningMode: mode } })}
                 />
               )}
+              </div>
+            )}
+            {/* Newspaper Footer */}
+            <div className="border-t-2 border-black p-6" style={{ backgroundColor: '#f8f7f2' }}>
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => dispatch({ type: 'NEXT_POST' })}
+                  className="flex items-center mx-auto px-6 py-2 bg-black text-white hover:bg-gray-800 transition-colors duration-200 shadow-sm"
+                  style={{ fontFamily: 'var(--font-crimson-text)' }}
+                >
+                  Next Article
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
 
-              {/* Newspaper Footer */}
-              <div className="border-t-2 border-black p-6" style={{ backgroundColor: '#f8f7f2' }}>
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => dispatch({ type: 'NEXT_POST' })}
-                    className="flex items-center mx-auto px-6 py-2 bg-black text-white hover:bg-gray-800 transition-colors duration-200 shadow-sm"
-                    style={{ fontFamily: 'var(--font-crimson-text)' }}
-                  >
-                    Next Article
-                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Newspaper Bottom Border */}
-                <div className="mt-4 pt-4 border-t border-black text-center">
-                  <p className="text-xs text-gray-600" style={{ fontFamily: 'var(--font-crimson-text)' }}>
-                    © 2024 The Vocab Herald • All rights reserved • Printed on recycled pixels
-                  </p>
-                </div>
+              {/* Newspaper Bottom Border */}
+              <div className="mt-4 pt-4 border-t border-black text-center">
+                <p className="text-xs text-gray-600" style={{ fontFamily: 'var(--font-crimson-text)' }}>
+                  © 2024 The Vocab Herald • All rights reserved • Printed on recycled pixels
+                </p>
               </div>
             </div>
-          )}
+          </div>
         </div>
         
         <CollapsiblePanel startOpen={true} direction="horizontal" arrowSize="sm">

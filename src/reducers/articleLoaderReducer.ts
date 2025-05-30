@@ -78,6 +78,7 @@ export function articleLoaderReducer(
   state: ArticleLoaderState, 
   action: ArticleLoaderAction
 ): ArticleLoaderState {
+  console.log(action);
   switch (action.type) {
     case 'START_LOADING':
       return {
@@ -128,7 +129,7 @@ export function articleLoaderReducer(
         ...state,
         uiState: {
           ...state.uiState,
-          isLoading: false,
+          isLoading: true,
           loadMessage: { message: action.payload.error, error: true }
         }
       };
@@ -184,8 +185,9 @@ export function articleLoaderReducer(
         ? currentCache.articles.length 
         : MAX_LEMONDE_ARTICLES;
 
-      const newIndex = (currentCache.currentIndex + 1) % maxArticles;
+      const newIndex = (Math.min(currentCache.currentIndex, currentCache.articles.length) + 1) % maxArticles;
 
+      console.log(newIndex);
       return {
         ...state,
         articles: {

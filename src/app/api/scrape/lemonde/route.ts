@@ -1,4 +1,118 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { chromium } from 'playwright';
+
+// Helper function to create browser context with realistic settings
+async function createBrowserContext() {
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-gpu'
+    ]
+  });
+
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    viewport: { width: 1920, height: 1080 },
+    locale: 'fr-FR',
+    timezoneId: 'Europe/Paris',
+    acceptDownloads: false,
+    javaScriptEnabled: true,
+    extraHTTPHeaders: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'DNT': '1',
+      'Cache-Control': 'max-age=0',
+      'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1'
+    }
+  });
+
+  return { browser, context };
+}
+
+// Helper function to fetch content with Playwright and retry logic
+async function fetchWithPlaywright(url: string, retries = 3): Promise<{ content: string, status: number }> {
+  const delays = [2000, 4000, 6000]; // 2s, 4s, 6s delays for browser operations
+  
+  for (let i = 0; i < retries; i++) {
+    let browser = null;
+    let context = null;
+    let page = null;
+    
+    try {
+      console.log(`Attempt ${i + 1} to fetch: ${url}`);
+      
+      const browserSetup = await createBrowserContext();
+      browser = browserSetup.browser;
+      context = browserSetup.context;
+      page = await context.newPage();
+
+      // Navigate to the page with a longer timeout
+      const response = await page.goto(url, { 
+        waitUntil: 'domcontentloaded',
+        timeout: 30000 
+      });
+
+      if (!response) {
+        throw new Error('No response received');
+      }
+
+      const status = response.status();
+      
+      // If we get a successful response, get the content
+      if (status >= 200 && status < 300) {
+        // Wait a bit for any dynamic content to load
+        await page.waitForTimeout(1000);
+        
+        const content = await page.content();
+        return { content, status };
+      }
+      
+      // If it's a 406 and not our last retry, continue to retry
+      if (status === 406 && i < retries - 1) {
+        console.log(`Attempt ${i + 1} failed with ${status}, retrying in ${delays[i]}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delays[i]));
+        continue;
+      }
+      
+      // For other errors or final retry, return the status
+      return { content: '', status };
+      
+    } catch (error) {
+      console.log(`Attempt ${i + 1} failed with error:`, error);
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delays[i]));
+        continue;
+      }
+      throw error;
+    } finally {
+      // Always clean up browser resources
+      try {
+        if (page) await page.close();
+        if (context) await context.close();
+        if (browser) await browser.close();
+      } catch (cleanupError) {
+        console.error('Error cleaning up browser:', cleanupError);
+      }
+    }
+  }
+  
+  throw new Error('All retry attempts failed');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,27 +143,38 @@ export async function POST(request: NextRequest) {
 
       console.log('Fetching article from:', url);
 
-      // Fetch the HTML content
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-        }
-      });
+      // Use Playwright to fetch the content
+      const { content: html, status } = await fetchWithPlaywright(url);
 
-      if (!response.ok) {
+      if (status !== 200) {
+        // Provide more detailed error information for 406 errors
+        if (status === 406) {
+          return NextResponse.json(
+            { 
+              error: `Failed to fetch article: ${status} Not Acceptable. This usually means the article is protected, requires authentication, or the URL is not accessible. Please try a different article URL or check if the article exists.`,
+              details: {
+                status: status,
+                statusText: 'Not Acceptable',
+                url: url,
+                suggestion: 'Try using the Random Article feature or Archive Scraper to find accessible articles.'
+              }
+            },
+            { status: status }
+          );
+        }
+        
         return NextResponse.json(
-          { error: `Failed to fetch article: ${response.status} ${response.statusText}` },
-          { status: response.status }
+          { 
+            error: `Failed to fetch article: ${status}`,
+            details: {
+              status: status,
+              statusText: 'HTTP Error',
+              url: url
+            }
+          },
+          { status: status }
         );
       }
-
-      const html = await response.text();
 
       // Basic HTML parsing to extract article content
       const articleData = parseLeMondeArticle(html, url);
@@ -65,7 +190,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Scraping API error:', error);
     return NextResponse.json(
-      { error: 'Internal server error during scraping' },
+      { 
+        error: 'Internal server error during scraping',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
@@ -92,26 +220,15 @@ async function handleGetArchiveArticles(archiveDate: string) {
     const archiveUrl = `https://www.lemonde.fr/archives-du-monde/${archiveDate}/`;
     console.log('Fetching archive from:', archiveUrl);
 
-    const response = await fetch(archiveUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-      }
-    });
+    const { content: html, status } = await fetchWithPlaywright(archiveUrl);
 
-    if (!response.ok) {
+    if (status !== 200) {
       return NextResponse.json(
-        { error: `Failed to fetch archive: ${response.status} ${response.statusText}` },
-        { status: response.status }
+        { error: `Failed to fetch archive: ${status}` },
+        { status: status }
       );
     }
 
-    const html = await response.text();
     const articles = parseArchiveArticles(html);
 
     return NextResponse.json({
@@ -138,26 +255,15 @@ async function handleGetRandomArticle() {
     const randomDate = generateRandomArchiveDate();
     
     // First, get the archive page to find articles
-    const response = await fetch(`https://www.lemonde.fr/archives-du-monde/${randomDate}/`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-      }
-    });
+    const { content: archiveHtml, status: archiveStatus } = await fetchWithPlaywright(`https://www.lemonde.fr/archives-du-monde/${randomDate}/`);
 
-    if (!response.ok) {
+    if (archiveStatus !== 200) {
       return NextResponse.json(
-        { error: `Failed to fetch archive: ${response.status} ${response.statusText}` },
-        { status: response.status }
+        { error: `Failed to fetch archive: ${archiveStatus}` },
+        { status: archiveStatus }
       );
     }
 
-    const archiveHtml = await response.text();
     const articles = parseArchiveArticles(archiveHtml);
     
     if (articles.length === 0) {
@@ -171,26 +277,15 @@ async function handleGetRandomArticle() {
     const randomArticle = articles[Math.floor(Math.random() * articles.length)];
     
     // Now scrape the actual article content
-    const articleResponse = await fetch(randomArticle.url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-      }
-    });
+    const { content: articleHtml, status: articleStatus } = await fetchWithPlaywright(randomArticle.url);
 
-    if (!articleResponse.ok) {
+    if (articleStatus !== 200) {
       return NextResponse.json(
-        { error: `Failed to fetch selected article: ${articleResponse.status} ${articleResponse.statusText}` },
-        { status: articleResponse.status }
+        { error: `Failed to fetch selected article: ${articleStatus}` },
+        { status: articleStatus }
       );
     }
 
-    const articleHtml = await articleResponse.text();
     const articleData = parseLeMondeArticle(articleHtml, randomArticle.url);
 
     return NextResponse.json({

@@ -42,15 +42,27 @@ interface RandomArticleResult extends ScrapeResult {
   };
 }
 
+interface ErrorDetails {
+  status?: number;
+  statusText?: string;
+  url?: string;
+  suggestion?: string;
+}
+
+interface ErrorResponse {
+  error: string;
+  details?: ErrorDetails;
+}
+
 export default function ScrapePage() {
-  const [url, setUrl] = useState('https://www.lemonde.fr/societe/article/2025/05/29/le-gouvernement-va-interdire-la-cigarette-sur-les-plages-dans-les-parcs-ou-encore-aux-abords-des-ecoles_6609127_3224.html');
+  const [url, setUrl] = useState('https://www.lemonde.fr/politique/article/2024/12/20/budget-2025-michel-barnier-renonce-a-faire-adopter-le-projet-de-loi-de-financement-de-la-securite-sociale_6398234_823448.html');
   const [archiveDate, setArchiveDate] = useState('01-05-2025');
   const [result, setResult] = useState<ScrapeResult | null>(null);
   const [archiveResult, setArchiveResult] = useState<ArchiveResult | null>(null);
   const [randomResult, setRandomResult] = useState<RandomArticleResult | null>(null);
-  const [error, setError] = useState('');
-  const [archiveError, setArchiveError] = useState('');
-  const [randomError, setRandomError] = useState('');
+  const [error, setError] = useState<string | ErrorResponse>('');
+  const [archiveError, setArchiveError] = useState<string | ErrorResponse>('');
+  const [randomError, setRandomError] = useState<string | ErrorResponse>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isArchiveLoading, setIsArchiveLoading] = useState(false);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
@@ -79,7 +91,9 @@ export default function ScrapePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Scraping request failed');
+        // Handle ErrorResponse from API
+        setError(data); // data will be ErrorResponse object with error and details
+        return;
       }
 
       setResult(data);
@@ -120,7 +134,8 @@ export default function ScrapePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Archive scraping request failed');
+        setArchiveError(data);
+        return;
       }
 
       setArchiveResult(data);
@@ -155,7 +170,8 @@ export default function ScrapePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Random article request failed');
+        setRandomError(data);
+        return;
       }
 
       setRandomResult(data);
@@ -316,7 +332,15 @@ export default function ScrapePage() {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">Error</h3>
-                    <div className="mt-2 text-sm text-red-700">{error}</div>
+                    <div className="mt-2 text-sm text-red-700">
+                      {typeof error === 'string' ? error : error.error}
+                      {/* Show suggestion if available */}
+                      {typeof error === 'object' && error.details?.suggestion && (
+                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-blue-800">
+                          <strong>Suggestion:</strong> {error.details.suggestion}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -332,7 +356,14 @@ export default function ScrapePage() {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">Error</h3>
-                    <div className="mt-2 text-sm text-red-700">{archiveError}</div>
+                    <div className="mt-2 text-sm text-red-700">
+                      {typeof archiveError === 'string' ? archiveError : archiveError.error}
+                      {typeof archiveError === 'object' && archiveError.details?.suggestion && (
+                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-blue-800">
+                          <strong>Suggestion:</strong> {archiveError.details.suggestion}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -348,7 +379,14 @@ export default function ScrapePage() {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">Error</h3>
-                    <div className="mt-2 text-sm text-red-700">{randomError}</div>
+                    <div className="mt-2 text-sm text-red-700">
+                      {typeof randomError === 'string' ? randomError : randomError.error}
+                      {typeof randomError === 'object' && randomError.details?.suggestion && (
+                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-blue-800">
+                          <strong>Suggestion:</strong> {randomError.details.suggestion}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
