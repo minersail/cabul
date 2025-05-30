@@ -1,21 +1,21 @@
 import { Walter_Turncoat } from 'next/font/google';
-
+import { ArticleSource } from '@/reducers/articleLoaderReducer';
 const walterTurncoat = Walter_Turncoat({
   weight: '400',
   subsets: ['latin'],
 });
 
 export interface OptionsPaneProps {
-  useReddit: boolean;
+  articleSource: ArticleSource;
   autoNav: boolean;
-  onUseRedditChange: (value: boolean) => void;
+  onArticleSourceChange: (value: ArticleSource) => void;
   onAutoNavChange: (value: boolean) => void;
 }
 
 export default function OptionsPane({
-  useReddit,
+  articleSource,
   autoNav,
-  onUseRedditChange,
+  onArticleSourceChange,
   onAutoNavChange,
 }: OptionsPaneProps) {
   return (
@@ -81,21 +81,21 @@ export default function OptionsPane({
                     <input
                       id="useReddit"
                       type="checkbox"
-                      checked={useReddit}
-                      onChange={(e) => onUseRedditChange(e.target.checked)}
+                      checked={articleSource === 'reddit'}
+                      onChange={(e) => onArticleSourceChange(e.target.checked ? 'reddit' : 'lemonde')}
                       className="sr-only peer"
                     />
-                    <div className={`absolute inset-0 rounded-sm ${useReddit ? 'border-[black]' : ''}`}
+                    <div className={`absolute inset-0 rounded-sm ${articleSource === 'reddit' ? 'border-[black]' : ''}`}
                          style={{
                            border: '2px solid black',
                            borderTopWidth: '3px',
                            borderRightWidth: '2px',
                            borderRadius: '2px',
                            transform: 'rotate(-2deg)',
-                           boxShadow: useReddit ? '0 0 2px rgba(30,136,229,0.4)' : 'none'
+                           boxShadow: articleSource === 'reddit' ? '0 0 2px rgba(30,136,229,0.4)' : 'none'
                          }}
                     />
-                    {useReddit && (
+                    {articleSource === 'reddit' && (
                       <div className="text-[black] text-2xl font-bold pointer-events-none absolute" 
                            style={{ 
                              textShadow: '0 0 1px rgba(30,136,229,0.4)',
