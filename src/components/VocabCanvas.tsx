@@ -4,8 +4,8 @@ import React, { useReducer } from "react";
 import VocabToken from "./VocabToken";
 import { SpaCyTokenizationResponse } from "@/types/tokenization";
 import { canvasReducer, initialState } from "@/reducers/vocabCanvasReducer";
-import { useKeyboardNavigation } from "@/utils/canvasInput";
 import { getCurrentTokenStyle, isTokenLearnable, getLearnableWords } from "@/utils/tokenization";
+import { useInput } from "@/hooks/useInput";
 
 interface VocabCanvasProps {
   content: string;
@@ -48,7 +48,7 @@ export default function VocabCanvas({
     }
   };
 
-  useKeyboardNavigation(isLearningMode, {
+  useInput(isLearningMode, {
     currentWordIndex: state.currentWordIndex,
     furthestWordIndex: state.furthestWordIndex,
     tokenizationInfo,

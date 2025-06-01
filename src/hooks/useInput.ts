@@ -1,10 +1,10 @@
 import { useCallback, useEffect } from 'react';
 import { SpaCyTokenizationResponse } from '@/types/tokenization';
-import { translateWord, translateSentence, lookupWiktionary } from './fetchApi';
-import { generateAllPhrases } from './phrasing';
+import { translateWord, translateSentence, lookupWiktionary } from '../utils/fetchApi';
+import { generateAllPhrases } from '../utils/phrasing';
 import { CanvasAction } from '@/reducers/vocabCanvasReducer';
 import { Dispatch } from 'react';
-import { getOriginalTextForToken, getSentenceContext, getLearnableWords } from './tokenization';
+import { getOriginalTextForToken, getSentenceContext, getLearnableWords } from '../utils/tokenization';
 
 // Key mapping dictionary for easier management
 export const KEY_MAPPINGS = {
@@ -193,7 +193,7 @@ export function useNavigationModeKeyPress({
   }, [currentWordIndex, furthestWordIndex, tokenizationInfo, dispatch, updateWordStats, setIsLearningMode]);
 }
 
-export function useKeyboardNavigation(
+export function useInput(
   isLearningMode: boolean,
   config: UseKeyPressConfig
 ) {

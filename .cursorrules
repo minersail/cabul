@@ -1,0 +1,32 @@
+# Vocab Herald - AI Assistant Rules
+
+## Context Loading (Start of Every Conversation)
+Always begin by reading:
+1. README.md - for current project status and implementation state
+2. prisma/schema.prisma - for database structure
+3. package.json - for dependencies and available scripts
+
+## Project Overview
+French vocabulary learning app: Articles  Tokenization  Word-by-word learning  Progress tracking
+Tech stack: Next.js + TypeScript + Supabase + Prisma
+
+## Documentation Maintenance
+Update README.md whenever you:
+- Complete major features or components
+- Add/modify database schema
+- Implement new integrations or APIs
+- Change core learning workflows
+- Add environment variables or setup steps
+- Reach development milestones
+
+Keep these README sections current:
+- Implementation Status (completed/in-progress/planned)
+- Recent Changes (with dates)
+- Architecture Overview
+- Setup instructions
+
+## Development Patterns
+- Use reducer patterns for complex state management
+- Use Prisma for all database operations
+- Maintain TypeScript strict mode
+- Follow existing error handling patterns

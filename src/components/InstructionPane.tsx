@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { Walter_Turncoat } from 'next/font/google';
-import { KEY_MAPPINGS } from '@/utils/canvasInput';
+import { KEY_MAPPINGS } from '@/hooks/useInput';
 
 const walterTurncoat = Walter_Turncoat({
   weight: '400',

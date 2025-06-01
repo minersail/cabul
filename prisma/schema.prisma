@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User table
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  
+  // Relations
+  userConfig UserConfig?
+  lexicon    Lexicon[]
+  mistakes   Mistake[]
+  sessions   Session[]
+  
+  @@map("users")
+}
+
+// UserConfig table
+model UserConfig {
+  userid        Int     @id
+  articleSource String
+  autoScroll    Boolean
+  
+  // Relations
+  user User @relation(fields: [userid], references: [id], onDelete: Cascade)
+  
+  @@map("user_config")
+}
+
+// Lemma table
+model Lemma {
+  lemma String @id
+  
+  // Relations
+  lexicon Lexicon[]
+  tokens  Token[]
+  
+  @@map("lemmas")
+}
+
+// Lexicon table (composite primary key: userid + lemma)
+model Lexicon {
+  userid    Int
+  lemma     String
+  seen      Int
+  correct   Int
+  firstSeen DateTime @default(now())
+  
+  // Relations
+  user      User  @relation(fields: [userid], references: [id], onDelete: Cascade)
+  lemmaRef  Lemma @relation(fields: [lemma], references: [lemma], onDelete: Cascade)
+  
+  @@id([userid, lemma])
+  @@map("lexicon")
+}
+
+// Token table
+model Token {
+  text  String @id
+  lemma String
+  pos   String
+  
+  // Relations
+  lemmaRef Lemma     @relation(fields: [lemma], references: [lemma], onDelete: Cascade)
+  mistakes Mistake[]
+  
+  @@map("tokens")
+}
+
+// Mistake table
+model Mistake {
+  mistakeId Int      @id @default(autoincrement())
+  userid    Int
+  token     String
+  sentence  String?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user     User  @relation(fields: [userid], references: [id], onDelete: Cascade)
+  tokenRef Token @relation(fields: [token], references: [text], onDelete: Cascade)
+  
+  @@map("mistakes")
+}
+
+// Article table
+model Article {
+  id        Int      @id @default(autoincrement())
+  title     String
+  text      String   @db.Text
+  source    String
+  url       String
+  author    String?
+  createdAt DateTime @default(now())
+  metadata  Json?
+  
+  // Relations
+  sessions Session[]
+  
+  @@map("articles")
+}
+
+// Session table (composite primary key: userid + articleid)
+model Session {
+  userid        Int
+  articleid     Int
+  furthestIndex Int
+  currentIndex  Int
+  
+  // Relations
+  user    User    @relation(fields: [userid], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleid], references: [id], onDelete: Cascade)
+  
+  @@id([userid, articleid])
+  @@map("sessions")
+}
