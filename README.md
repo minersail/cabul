@@ -14,6 +14,7 @@
 - **Visual Feedback**: Token highlighting, flash states, progress bars
 - **Database Schema**: PostgreSQL with Prisma ORM (profiles, lexicon, sessions, etc.)
 - **Vocabulary Service**: Database service layer for user vocabulary management
+- **Article Service**: Database operations for article CRUD (add, fetch by source, delete)
 - **Local Development Environment**: Supabase local stack + Docker
 - **Anonymous Authentication**: Auto-sign in with seamless conversion to permanent accounts
 
@@ -55,8 +56,10 @@ ArticleLoader (main orchestrator)
 
 ### Service Layer Architecture
 ```
-src/lib/services/
-└── vocabularyService.ts (vocabulary CRUD operations)
+src/lib/actions/
+├── vocabularyActions.ts (vocabulary CRUD operations)
+├── articleActions.ts (article CRUD operations)
+└── userActions.ts (user profile operations)
 ```
 
 ### External Integrations
@@ -155,3 +158,4 @@ npx prisma generate  # Regenerate Prisma client
 - 2025-06-01: Added docs/ folder with architecture documentation
 - 2025-06-01: Implemented anonymous authentication with seamless account conversion
 - 2025-06-01: Centralized auth logic in useAuth hook
+- 2025-06-02: Implemented article database operations (addArticle, getArticlesBySource)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { SpaCyTokenizationResponse } from '@/types/tokenization';
-import { translateWord, translateSentence, lookupWiktionary } from '../utils/fetchApi';
+import { translateWord, translateSentence, lookupWiktionary } from '@/services/tokenService';
 import { generateAllPhrases } from '../utils/phrasing';
 import { CanvasAction } from '@/reducers/vocabCanvasReducer';
 import { Dispatch } from 'react';

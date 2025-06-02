@@ -1,6 +1,6 @@
 import { MAX_LEMONDE_ARTICLES } from "@/components/ArticleLoader";
 import { RedditPost, LeMondeArticle } from "@/types/articles";
-import { TokenizationResponse, ErrorMessage } from "@/utils/fetchApi";
+import { TokenizationResponse, ErrorMessage } from "@/services/loaderService";
 
 export type ArticleSource = 'reddit' | 'lemonde';
 
@@ -12,25 +12,22 @@ export interface Message {
 export interface UIState {
   isLoading: boolean;
   isTokenizing: boolean;
+  isSaving: boolean;
   loadMessage: Message;
   tokenMessage: Message;
-}
-
-export interface UserConfig {
-  articleSource: ArticleSource;
-  autoNav: boolean;
+  saveMessage: Message;
 }
 
 export interface ArticleCache<ArticleType> {
   articles: ArticleType[];
   currentIndex: number;
+  hasLoadedFromDatabase: boolean;
 }
 
 export interface ArticleLoaderState {
   isLearningMode: boolean;
   tokenizationResult: TokenizationResponse | null;
   uiState: UIState;
-  userConfig: UserConfig;
   articles: {
     redditCache: ArticleCache<RedditPost>;
     leMondeCache: ArticleCache<LeMondeArticle>;
@@ -41,12 +38,15 @@ export type ArticleLoaderAction =
   | { type: 'START_LOADING' }
   | { type: 'REDDIT_LOADED'; payload: { posts: RedditPost[] } }
   | { type: 'LEMONDE_LOADED'; payload: { article: LeMondeArticle } }
+  | { type: 'DATABASE_ARTICLES_LOADED'; payload: { articles: RedditPost[] | LeMondeArticle[]; source: ArticleSource } }
   | { type: 'LOAD_ERROR'; payload: { error: string } }
   | { type: 'START_TOKENIZING' }
   | { type: 'TOKENIZED'; payload: { result: TokenizationResponse } }
   | { type: 'TOKENIZE_ERROR'; payload: { error: string } }
-  | { type: 'UPDATE_USER_CONFIG'; payload: Partial<UserConfig> }
-  | { type: 'NEXT_POST' }
+  | { type: 'START_SAVING_ARTICLE' }
+  | { type: 'ARTICLE_SAVED'; payload: { message: string } }
+  | { type: 'SAVE_ARTICLE_ERROR'; payload: { error: string } }
+  | { type: 'NEXT_POST'; payload: { articleSource: ArticleSource } }
   | { type: 'SET_LEARNING_MODE'; payload: { isLearningMode: boolean } }
 
 export const initialState: ArticleLoaderState = {
@@ -55,16 +55,14 @@ export const initialState: ArticleLoaderState = {
   uiState: {
     isLoading: false,
     isTokenizing: false,
+    isSaving: false,
     loadMessage: { message: "Page uninitialized", error: false },
-    tokenMessage: { message: "Page uninitialized", error: false }
-  },
-  userConfig: {
-    articleSource: 'reddit',
-    autoNav: false
+    tokenMessage: { message: "Page uninitialized", error: false },
+    saveMessage: { message: "", error: false }
   },
   articles: {
-    redditCache: { articles: [], currentIndex: 0 },
-    leMondeCache: { articles: [], currentIndex: 0 },
+    redditCache: { articles: [], currentIndex: 0, hasLoadedFromDatabase: false },
+    leMondeCache: { articles: [], currentIndex: 0, hasLoadedFromDatabase: false },
   }
 };
 
@@ -90,8 +88,9 @@ export function articleLoaderReducer(
         articles: {
           ...state.articles,
           redditCache: {
-            articles: action.payload.posts,
-            currentIndex: state.articles.redditCache.currentIndex
+            articles: [...action.payload.posts, ...state.articles.redditCache.articles],
+            currentIndex: state.articles.redditCache.currentIndex,
+            hasLoadedFromDatabase: state.articles.redditCache.hasLoadedFromDatabase
           },
         },
         uiState: {
@@ -108,7 +107,8 @@ export function articleLoaderReducer(
           ...state.articles,
           leMondeCache: {
             articles: [...state.articles.leMondeCache.articles, action.payload.article],
-            currentIndex: state.articles.leMondeCache.currentIndex
+            currentIndex: state.articles.leMondeCache.currentIndex,
+            hasLoadedFromDatabase: state.articles.leMondeCache.hasLoadedFromDatabase
           },
         },
         uiState: {
@@ -118,12 +118,48 @@ export function articleLoaderReducer(
         }
       };
 
+    case 'DATABASE_ARTICLES_LOADED':
+      if (action.payload.source === 'reddit') {
+        return {
+          ...state,
+          articles: {
+            ...state.articles,
+            redditCache: {
+              articles: action.payload.articles as RedditPost[],
+              currentIndex: state.articles.redditCache.currentIndex,
+              hasLoadedFromDatabase: true
+            }
+          },
+          uiState: {
+            ...state.uiState,
+            loadMessage: { message: "", error: false }
+          }
+        };
+      } else {
+        return {
+          ...state,
+          articles: {
+            ...state.articles,
+            leMondeCache: {
+              articles: action.payload.articles as LeMondeArticle[],
+              currentIndex: state.articles.leMondeCache.currentIndex,
+              hasLoadedFromDatabase: true
+            }
+          },
+          uiState: {
+            ...state.uiState,
+            isLoading: false,
+            loadMessage: { message: "", error: false }
+          }
+        };
+      }
+
     case 'LOAD_ERROR':
       return {
         ...state,
         uiState: {
           ...state.uiState,
-          isLoading: true,
+          isLoading: false,
           loadMessage: { message: action.payload.error, error: true }
         }
       };
@@ -161,21 +197,43 @@ export function articleLoaderReducer(
         }
       };
 
-    case 'UPDATE_USER_CONFIG':
+    case 'START_SAVING_ARTICLE':
       return {
         ...state,
-        userConfig: {
-          ...state.userConfig,
-          ...action.payload
+        uiState: {
+          ...state.uiState,
+          isSaving: true,
+          saveMessage: { message: "Saving article...", error: false }
+        }
+      };
+
+    case 'ARTICLE_SAVED':
+      return {
+        ...state,
+        uiState: {
+          ...state.uiState,
+          isSaving: false,
+          saveMessage: { message: action.payload.message, error: false }
+        }
+      };
+
+    case 'SAVE_ARTICLE_ERROR':
+      return {
+        ...state,
+        uiState: {
+          ...state.uiState,
+          isSaving: false,
+          saveMessage: { message: action.payload.error, error: true }
         }
       };
 
     case 'NEXT_POST':
-      const currentCache = state.userConfig.articleSource === 'reddit' 
+      const articleSource = action.payload.articleSource;
+      const currentCache = articleSource === 'reddit' 
         ? state.articles.redditCache 
         : state.articles.leMondeCache;
       
-      const maxArticles = state.userConfig.articleSource === 'reddit' 
+      const maxArticles = articleSource === 'reddit' 
         ? currentCache.articles.length 
         : MAX_LEMONDE_ARTICLES;
 
@@ -186,7 +244,7 @@ export function articleLoaderReducer(
         ...state,
         articles: {
           ...state.articles,
-          [state.userConfig.articleSource === 'reddit' ? 'redditCache' : 'leMondeCache']: {
+          [articleSource === 'reddit' ? 'redditCache' : 'leMondeCache']: {
             ...currentCache,
             currentIndex: newIndex
           }

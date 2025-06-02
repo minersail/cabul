@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { createUserProfile } from '@/lib/actions/userActions'
+import { upsertUserConfig } from '@/lib/actions/userConfigActions'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -64,6 +65,18 @@ export function useAuth() {
         
         if (result.success) {
           console.log(`Created profile for ${authUser.is_anonymous ? 'anonymous' : 'authenticated'} user`)
+          
+          // Create default user config for new profile
+          const configResult = await upsertUserConfig(authUser.id, {
+            articleSource: 'reddit',
+            autoScroll: false
+          })
+          
+          if (configResult.success) {
+            console.log('Created default user config')
+          } else {
+            console.error('Failed to create default user config:', configResult.error)
+          }
         } else {
           console.error('Failed to create profile:', result.error)
           // Don't throw here - let the app continue, vocabulary actions will handle the missing profile gracefully

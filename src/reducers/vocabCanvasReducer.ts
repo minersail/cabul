@@ -1,5 +1,5 @@
 import { InformationDisplayType, TokenInformation } from "@/components/VocabToken";
-import { WiktionaryResponse } from "@/utils/fetchApi";
+import { WiktionaryResponse } from "@/services/tokenService";
 
 export interface UIState {
   flashState: 'none' | 'green' | 'red';

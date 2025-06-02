@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useState, useMemo } from "react";
 import VocabCanvas from "./VocabCanvas";
 import VocabStats from "./VocabStats";
 import InstructionPane from "./InstructionPane";
-import OptionsPane from "./OptionsPane";
+import OptionsPane, { OptionConfig } from "./OptionsPane";
 import CollapsiblePanel from "./CollapsiblePanel";
-import { tokenizeText, getRedditPosts, getRandomLeMondeArticle, isErrorMessage } from "@/utils/fetchApi";
-import { Article } from "@/types/articles";
+import { tokenizeText, getRedditPosts, getRandomLeMondeArticle, isErrorMessage, saveCurrentArticle } from "@/services/loaderService";
+import { Article, articleDataToTypedArticle, articleToCreateData } from "@/types/articles";
 import { ArticleCache, articleLoaderReducer, ArticleSource, initialState, Message } from "@/reducers/articleLoaderReducer";
 import { addWordToVocabulary } from '@/lib/actions/vocabularyActions';
+import { getArticlesBySource } from '@/lib/actions/articleActions';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserConfig } from '@/hooks/useUserConfig';
 
 function getCurrentArticle(cache: ArticleCache<Article>): Article | null {
   return (cache.articles.length > 0 && cache.currentIndex < cache.articles.length) ? 
@@ -26,20 +28,79 @@ export const MAX_LEMONDE_ARTICLES = 3;
 export default function ArticleLoader() {
   const [state, dispatch] = useReducer(articleLoaderReducer, initialState);
   const { user } = useAuth();
+  const { config: userConfig, updateConfig } = useUserConfig();
   
   // Simple trigger that increments when vocabulary changes
   const [vocabularyUpdateTrigger, setVocabularyUpdateTrigger] = useState(0);
 
   // Will return null and trigger a fetch if no article is cached
-  const currentArticle: Article | null = getCurrentArticle(state.userConfig.articleSource === 'reddit' ? state.articles.redditCache : state.articles.leMondeCache);
+  const currentArticle: Article | null = getCurrentArticle(userConfig.articleSource === 'reddit' ? state.articles.redditCache : state.articles.leMondeCache);
 
-  // Lazily load articles
+  // Create dynamic options configuration
+  const optionsConfig: OptionConfig[] = useMemo(() => [
+    {
+      id: 'articleSource',
+      label: 'Article Source',
+      type: 'select',
+      value: userConfig.articleSource,
+      onChange: (value: ArticleSource) => updateConfig('articleSource', value),
+      options: [
+        { value: 'reddit', label: 'Reddit Posts' },
+        { value: 'lemonde', label: 'Le Monde Articles' }
+      ]
+    },
+    {
+      id: 'autoScroll',
+      label: 'Auto Scroll',
+      type: 'boolean',
+      value: userConfig.autoScroll,
+      onChange: (value: boolean) => updateConfig('autoScroll', value)
+    }
+  ], [userConfig.articleSource, userConfig.autoScroll, updateConfig]);
+
+  // Load database articles on component mount and source change
+  useEffect(() => {
+    const loadDatabaseArticles = async () => {
+      const currentCache = userConfig.articleSource === 'reddit' ? state.articles.redditCache : state.articles.leMondeCache;
+      
+      // Only load from database if we haven't already
+      if (!currentCache.hasLoadedFromDatabase) {
+        try {
+          const result = await getArticlesBySource(userConfig.articleSource);
+          if (result.success) {
+            const typedArticles = result.data.map(articleDataToTypedArticle);
+            
+            // Filter articles by type to ensure type safety
+            const filteredArticles = userConfig.articleSource === 'reddit' 
+              ? typedArticles.filter(article => article.type === 'reddit')
+              : typedArticles.filter(article => article.type === 'lemonde');
+            
+            dispatch({
+              type: 'DATABASE_ARTICLES_LOADED',
+              payload: {
+                articles: filteredArticles,
+                source: userConfig.articleSource
+              }
+            });
+          }
+        } catch (error) {
+          dispatch({ type: 'LOAD_ERROR', payload: { error: 'Error loading articles from database' } });
+          console.error('Error loading database articles:', error);
+        }
+      }
+    };
+
+    loadDatabaseArticles();
+  }, [userConfig.articleSource, state.articles.redditCache.hasLoadedFromDatabase, state.articles.leMondeCache.hasLoadedFromDatabase]);
+
+  // Lazily load articles from APIs
   useEffect(() => {
     if (currentArticle === null) {
       const fetchArticles = async () => {
         dispatch({ type: 'START_LOADING' });
         
-        if (state.userConfig.articleSource === 'reddit') {
+        if (userConfig.articleSource === 'reddit') {
+          // For Reddit: load from API and concatenate with database articles
           const result = await getRedditPosts();
           if (isErrorMessage(result)) {
             dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
@@ -47,17 +108,21 @@ export default function ArticleLoader() {
             dispatch({ type: 'REDDIT_LOADED', payload: { posts: result } });
           }
         } else {
-          const result = await getRandomLeMondeArticle();
-          if (isErrorMessage(result)) {
-            dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
-          } else {
-            dispatch({ type: 'LEMONDE_LOADED', payload: { article: result } });
+          // For Le Monde: only load from API if database is empty
+          const currentLeMondeCache = state.articles.leMondeCache;
+          if (currentLeMondeCache.articles.length < MAX_LEMONDE_ARTICLES) {
+            const result = await getRandomLeMondeArticle();
+            if (isErrorMessage(result)) {
+              dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
+            } else {
+              dispatch({ type: 'LEMONDE_LOADED', payload: { article: result } });
+            }
           }
         }
       };
       fetchArticles();
     }
-  }, [state.userConfig.articleSource, currentArticle, state.articles]);
+  }, [userConfig.articleSource, currentArticle, state.articles]);
 
   // Tokenization effect
   useEffect(() => {
@@ -99,8 +164,6 @@ export default function ArticleLoader() {
     }
   };
 
-  console.log(state);
-
   return (
     <div>
       <div className="flex gap-6">
@@ -122,10 +185,36 @@ export default function ArticleLoader() {
                     <h2 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-playfair-display)', color: '#2f2f2f' }}>
                       {currentArticle.title}
                     </h2>
-                    <span className={`px-2 py-1 text-xs rounded-full ${state.userConfig.articleSource === 'reddit' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
-                      {state.userConfig.articleSource === 'reddit' ? 'Reddit' : 'Le Monde'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 text-xs rounded-full ${userConfig.articleSource === 'reddit' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
+                        {userConfig.articleSource === 'reddit' ? 'Reddit' : 'Le Monde'}
+                      </span>
+                      <button
+                        onClick={() => saveCurrentArticle(currentArticle, dispatch)}
+                        disabled={state.uiState.isSaving}
+                        className="p-1 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+                        title={state.uiState.isSaving ? 'Saving article...' : 'Save article to library'}
+                      >
+                        {state.uiState.isSaving ? (
+                          <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
+                  
+                  {/* Save message display */}
+                  {state.uiState.saveMessage.message && (
+                    <div className={`text-xs mb-2 ${state.uiState.saveMessage.error ? 'text-red-600' : 'text-gray-400'}`}>
+                      {state.uiState.saveMessage.message}
+                    </div>
+                  )}
+                  
                   <div className="flex items-center text-sm text-gray-600 space-x-2" style={{ fontFamily: 'var(--font-crimson-text)' }}>
                     <span>By {currentArticle.author}</span>
                     <span>•</span>
@@ -179,7 +268,7 @@ export default function ArticleLoader() {
             <div className="border-t-2 border-black p-6" style={{ backgroundColor: '#f8f7f2' }}>
               <div className="mt-4 text-center">
                 <button
-                  onClick={() => dispatch({ type: 'NEXT_POST' })}
+                  onClick={() => dispatch({ type: 'NEXT_POST', payload: { articleSource: userConfig.articleSource } })}
                   className="flex items-center mx-auto px-6 py-2 bg-black text-white hover:bg-gray-800 transition-colors duration-200 shadow-sm"
                   style={{ fontFamily: 'var(--font-crimson-text)' }}
                 >
@@ -202,12 +291,7 @@ export default function ArticleLoader() {
         
         <CollapsiblePanel startOpen={true} direction="horizontal" arrowSize="sm">
           <InstructionPane isLearningMode={state.isLearningMode} />
-          <OptionsPane
-            articleSource={state.userConfig.articleSource}
-            autoNav={state.userConfig.autoNav}
-            onArticleSourceChange={(articleSource: ArticleSource) => dispatch({ type: 'UPDATE_USER_CONFIG', payload: { articleSource } })}
-            onAutoNavChange={(autoNav: boolean) => dispatch({ type: 'UPDATE_USER_CONFIG', payload: { autoNav } })}
-          />
+          <OptionsPane options={optionsConfig} />
         </CollapsiblePanel>
       </div>
 

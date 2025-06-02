@@ -1,23 +1,158 @@
 import { Walter_Turncoat } from 'next/font/google';
 import { ArticleSource } from '@/reducers/articleLoaderReducer';
+
 const walterTurncoat = Walter_Turncoat({
   weight: '400',
   subsets: ['latin'],
 });
 
-export interface OptionsPaneProps {
-  articleSource: ArticleSource;
-  autoNav: boolean;
-  onArticleSourceChange: (value: ArticleSource) => void;
-  onAutoNavChange: (value: boolean) => void;
+// Configuration for different option types
+export interface OptionConfig {
+  id: string;
+  label: string;
+  type: 'boolean' | 'select';
+  value: any;
+  onChange: (value: any) => void;
+  options?: { value: any; label: string }[]; // For select type
 }
 
-export default function OptionsPane({
-  articleSource,
-  autoNav,
-  onArticleSourceChange,
-  onAutoNavChange,
-}: OptionsPaneProps) {
+export interface OptionsPaneProps {
+  options: OptionConfig[];
+}
+
+// Shared checkbox-style input component
+interface CheckboxStyleInputProps {
+  id: string;
+  checked: boolean;
+  onChange: () => void;
+  index: number;
+  type?: 'checkbox' | 'radio';
+  name?: string;
+}
+
+function CheckboxStyleInput({ 
+  id, 
+  checked, 
+  onChange, 
+  index, 
+  type = 'checkbox',
+  name 
+}: CheckboxStyleInputProps) {
+  return (
+    <div className="relative w-6 h-6 flex items-center justify-center">
+      <input
+        id={id}
+        type={type}
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        className="sr-only peer"
+      />
+      <div 
+        className={`absolute inset-0 rounded-sm ${checked ? 'border-[black]' : ''}`}
+        style={{
+          border: '2px solid black',
+          borderTopWidth: '3px',
+          borderRightWidth: '2px',
+          borderRadius: '2px',
+          transform: `rotate(${index % 2 === 0 ? '-2' : '1'}deg)`,
+          boxShadow: checked ? '0 0 2px rgba(30,136,229,0.4)' : 'none'
+        }}
+      />
+      {checked && (
+        <div 
+          className="text-[black] text-2xl font-bold pointer-events-none absolute" 
+          style={{ 
+            textShadow: '0 0 1px rgba(30,136,229,0.4)',
+            filter: 'blur(0.3px)',
+            transform: `rotate(${index % 2 === 0 ? '-5' : '3'}deg) translate(-1px, -2px)`,
+            opacity: 0.9
+          }}
+        >
+          ✗
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shared label component
+interface OptionLabelProps {
+  text: string;
+  size?: 'sm' | 'xs';
+}
+
+function OptionLabel({ text, size = 'sm' }: OptionLabelProps) {
+  return (
+    <span 
+      className={`${walterTurncoat.className} text-${size} pointer-events-none`}
+      style={{
+        filter: 'blur(0.3px)',
+        color: 'black',
+        opacity: size === 'sm' ? 0.9 : 0.8
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
+export default function OptionsPane({ options }: OptionsPaneProps) {
+  const renderBooleanOption = (option: OptionConfig, index: number) => (
+    <div key={option.id} className="relative group">
+      <div className="absolute inset-0 bg-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded"></div>
+      <label htmlFor={option.id} className="relative z-20 flex items-center gap-3 cursor-pointer">
+        <CheckboxStyleInput
+          id={option.id}
+          checked={!!option.value}
+          onChange={() => option.onChange(!option.value)}
+          index={index}
+          type="checkbox"
+        />
+        <OptionLabel text={option.label} />
+      </label>
+    </div>
+  );
+
+  const renderSelectOption = (option: OptionConfig, index: number) => (
+    <div key={option.id} className="relative group">
+      <div className="absolute inset-0 bg-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded"></div>
+      <div className="relative z-20">
+        <OptionLabel text={option.label} />
+        <div className="space-y-2 mt-2">
+          {option.options?.map((selectOption, selectIndex) => (
+            <label 
+              key={selectOption.value} 
+              htmlFor={`${option.id}-${selectOption.value}`} 
+              className="flex items-center gap-3 cursor-pointer"
+            >
+              <CheckboxStyleInput
+                id={`${option.id}-${selectOption.value}`}
+                checked={option.value === selectOption.value}
+                onChange={() => option.onChange(selectOption.value)}
+                index={index + selectIndex}
+                type="radio"
+                name={option.id}
+              />
+              <OptionLabel text={selectOption.label} size="xs" />
+            </label>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderOption = (option: OptionConfig, index: number) => {
+    switch (option.type) {
+      case 'boolean':
+        return renderBooleanOption(option, index);
+      case 'select':
+        return renderSelectOption(option, index);
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="mt-4">
       <div className="rounded-lg p-[6px] shadow-lg"
@@ -72,95 +207,9 @@ export default function OptionsPane({
                  }}>
             </div>
             
-            {/* Options with expo marker effect */}
+            {/* Dynamic options rendering */}
             <div className="space-y-4 relative z-20">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded"></div>
-                <label htmlFor="useReddit" className="relative z-20 flex items-center gap-3 cursor-pointer">
-                  <div className="relative w-6 h-6 flex items-center justify-center">
-                    <input
-                      id="useReddit"
-                      type="checkbox"
-                      checked={articleSource === 'reddit'}
-                      onChange={(e) => onArticleSourceChange(e.target.checked ? 'reddit' : 'lemonde')}
-                      className="sr-only peer"
-                    />
-                    <div className={`absolute inset-0 rounded-sm ${articleSource === 'reddit' ? 'border-[black]' : ''}`}
-                         style={{
-                           border: '2px solid black',
-                           borderTopWidth: '3px',
-                           borderRightWidth: '2px',
-                           borderRadius: '2px',
-                           transform: 'rotate(-2deg)',
-                           boxShadow: articleSource === 'reddit' ? '0 0 2px rgba(30,136,229,0.4)' : 'none'
-                         }}
-                    />
-                    {articleSource === 'reddit' && (
-                      <div className="text-[black] text-2xl font-bold pointer-events-none absolute" 
-                           style={{ 
-                             textShadow: '0 0 1px rgba(30,136,229,0.4)',
-                             filter: 'blur(0.3px)',
-                             transform: 'rotate(-5deg) translate(-1px, -2px)',
-                             opacity: 0.9
-                           }}>
-                        ✗
-                      </div>
-                    )}
-                  </div>
-                  <span className={`${walterTurncoat.className} text-sm pointer-events-none`}
-                        style={{
-                          filter: 'blur(0.3px)',
-                          color: 'black',
-                          opacity: 0.9
-                        }}>
-                    Use Reddit Content
-                  </span>
-                </label>
-              </div>
-
-              <div className="relative group">
-                <div className="absolute inset-0 bg-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded"></div>
-                <label htmlFor="autoNav" className="relative z-20 flex items-center gap-3 cursor-pointer">
-                  <div className="relative w-6 h-6 flex items-center justify-center">
-                    <input
-                      id="autoNav"
-                      type="checkbox"
-                      checked={autoNav}
-                      onChange={(e) => onAutoNavChange(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className={`absolute inset-0 rounded-sm ${autoNav ? 'border-[black]' : ''}`}
-                         style={{
-                           border: '2px solid black',
-                           borderTopWidth: '3px',
-                           borderRightWidth: '2px',
-                           borderRadius: '2px',
-                           transform: 'rotate(1deg)',
-                           boxShadow: autoNav ? '0 0 2px rgba(30,136,229,0.4)' : 'none'
-                         }}
-                    />
-                    {autoNav && (
-                      <div className="text-[black] text-2xl font-bold pointer-events-none absolute" 
-                           style={{ 
-                             textShadow: '0 0 1px rgba(30,136,229,0.4)',
-                             filter: 'blur(0.3px)',
-                             transform: 'rotate(3deg) translate(-1px, -2px)',
-                             opacity: 0.9
-                           }}>
-                        ✗
-                      </div>
-                    )}
-                  </div>
-                  <span className={`${walterTurncoat.className} text-sm pointer-events-none`}
-                        style={{
-                          filter: 'blur(0.3px)',
-                          color: 'black',
-                          opacity: 0.9
-                        }}>
-                    Auto Navigation
-                  </span>
-                </label>
-              </div>
+              {options.map((option, index) => renderOption(option, index))}
             </div>
           </div>
         </div>
