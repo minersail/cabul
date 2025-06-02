@@ -9,14 +9,15 @@
 - **Translation Services**: DeepL word/sentence translation with context
 - **Wiktionary Integration**: Etymology, pronunciation, definitions lookup
 - **Phrase Detection**: Dependency-tree based phrase extraction
-- **Progress Tracking**: LocalStorage word statistics (encounters/correct)
+- **Progress Tracking**: Database vocabulary storage with anonymous user support
 - **Dual Learning Modes**: Navigation mode (fast) vs Learning mode (detailed)
 - **Visual Feedback**: Token highlighting, flash states, progress bars
-- **Database Schema**: PostgreSQL with Prisma ORM (users, lexicon, sessions, etc.)
+- **Database Schema**: PostgreSQL with Prisma ORM (profiles, lexicon, sessions, etc.)
+- **Vocabulary Service**: Database service layer for user vocabulary management
 - **Local Development Environment**: Supabase local stack + Docker
+- **Anonymous Authentication**: Auto-sign in with seamless conversion to permanent accounts
 
 ### 🚧 IN PROGRESS (Higher Priority)
-- **Database Integration**: Schema created, services not yet implemented
 - **Hosting**: Local setup complete, production deployment pending
 
 ### 📋 TODO (Lower Priority - Subject to Change)
@@ -25,16 +26,21 @@
 - **Enhanced Phrase System**: More POS patterns, Wiktionary phrase lookup, translations
 - **Phrase Saving**: User vocabulary collection system
 
+## Documentation
+
+### Architecture Guides
+- **[Supabase Migration Guide](docs/SUPABASE_MIGRATION.md)**: Detailed explanation of Profile-based architecture and Supabase auth integration
+
 ## Architecture Overview
 
 ### Core Data Flow
-ArticleLoader → TokenizationAPI → VocabCanvas → VocabToken → KeyboardNavigation → LocalStorage
+ArticleLoader → TokenizationAPI → VocabCanvas → VocabToken → KeyboardNavigation → Database
 
 ### State Management Pattern
 **Reducer-based architecture** with clear action types:
 - `ArticleLoaderReducer`: Article caching, tokenization, user config, loading states
 - `VocabCanvasReducer`: Current word position, learning state, API responses
-- LocalStorage: Word statistics, user preferences (pre-database)
+- Database Services: Persistent vocabulary and progress tracking (anonymous + authenticated users)
 
 ### Key Component Relationships
 ```
@@ -47,17 +53,24 @@ ArticleLoader (main orchestrator)
 └── VocabStats (progress display)
 ```
 
+### Service Layer Architecture
+```
+src/lib/services/
+└── vocabularyService.ts (vocabulary CRUD operations)
+```
+
 ### External Integrations
 - **Hugging Face**: SpaCy tokenization API
 - **DeepL**: Translation services
 - **Wiktionary**: Dictionary lookups
 - **Reddit API**: French subreddit scraping
 - **Le Monde**: Article scraping
+- **Supabase**: Authentication and database hosting
 
 ## Database Schema (Supabase + Prisma)
 
 **Core Tables:**
-- `users`: Authentication and basic user data
+- `profiles`: User profiles (references Supabase auth.users via UUID, nullable email for anonymous)
 - `lexicon`: User's vocabulary words with proficiency tracking
 - `mistakes`: Error tracking for spaced repetition
 - `sessions`: Learning session analytics
@@ -65,17 +78,18 @@ ArticleLoader (main orchestrator)
 - `articles`: Cached articles with tokenization
 - `lemmas`: French word forms and base lemmas
 
-**Relationships:** User → (UserConfig, Lexicon, Mistakes, Sessions)
+**Relationships:** Profile → (UserConfig, Lexicon, Mistakes, Sessions)
 
 ## Current Learning Flow
 
-1. **Article Selection**: User chooses Reddit/Le Monde source
-2. **Content Fetching**: API retrieves and caches articles
-3. **Tokenization**: SpaCy analyzes text (POS, dependencies, entities)
-4. **Navigation Mode**: User moves through words with E (know) / W (help)
-5. **Learning Mode**: Triggered by 'help', provides translations/definitions
-6. **Progress Tracking**: LocalStorage updates word encounter/success stats
-7. **Visual Feedback**: Green flash (correct), highlighting, progress bar
+1. **Anonymous Start**: Users are automatically signed in anonymously
+2. **Article Selection**: User chooses Reddit/Le Monde source
+3. **Content Fetching**: API retrieves and caches articles
+4. **Tokenization**: SpaCy analyzes text (POS, dependencies, entities)
+5. **Navigation Mode**: User moves through words with E (know) / W (help)
+6. **Learning Mode**: Triggered by 'help', provides translations/definitions
+7. **Progress Tracking**: Database updates word stats (anonymous or authenticated)
+8. **Account Conversion**: Anonymous users can easily convert to permanent accounts
 
 ## Keyboard Navigation (Current Implementation)
 
@@ -105,6 +119,7 @@ DEEPL_API_KEY=[required]
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
 - **Backend**: Next.js API routes
 - **Database**: PostgreSQL (Supabase), Prisma ORM
+- **Authentication**: Supabase Auth with Anonymous Users
 - **APIs**: Hugging Face (SpaCy), DeepL, Wiktionary
 - **Styling**: Newspaper-inspired design with Crimson Text + Playfair Display fonts
 - **Dev Tools**: Docker (Supabase local), Prisma Studio
@@ -126,11 +141,6 @@ npx prisma generate  # Regenerate Prisma client
 3. **canvasInput.ts**: Dual-mode keyboard navigation system
 4. **vocabCanvasReducer.ts**: Learning state management with API integration
 
-### Data Persistence Strategy
-- **Current**: LocalStorage for word statistics (temporary)
-- **Target**: Database integration for user vocabulary and progress
-- **Migration**: Will need to transfer localStorage data to database
-
 ### Token Classification System
 - **Learnable**: Alphabetic tokens, excluding stop words and entities
 - **Navigation**: Learnable words only (filters out punctuation, spaces)
@@ -138,7 +148,10 @@ npx prisma generate  # Regenerate Prisma client
 
 ## Recent Changes
 - 2025-06-01: Added Supabase + Prisma local development setup
-- 2025-06-01: Implemented complete database schema matching ERM requirements
+- 2025-06-01: Implemented Profile-based schema compatible with Supabase auth (UUID-based)
+- 2025-06-01: Created vocabulary service layer for database operations
 - 2025-06-01: Configured authentication middleware and Prisma client
 - 2025-06-01: Added .cursorrules for AI assistant context management
-
+- 2025-06-01: Added docs/ folder with architecture documentation
+- 2025-06-01: Implemented anonymous authentication with seamless account conversion
+- 2025-06-01: Centralized auth logic in useAuth hook

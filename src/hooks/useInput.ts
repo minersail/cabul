@@ -28,7 +28,7 @@ interface UseKeyPressConfig {
   furthestWordIndex: number;
   tokenizationInfo: SpaCyTokenizationResponse;
   dispatch: Dispatch<CanvasAction>;
-  updateWordStats: (word: string, wasCorrect: boolean) => void;
+  updateWordStats: (word: string, wasCorrect: boolean) => Promise<void>;
   setIsLearningMode: (value: boolean) => void;
 }
 
@@ -150,7 +150,7 @@ export function useNavigationModeKeyPress({
     switch (event.code) {
       case KEY_MAPPINGS.NAVIGATION_MODE.ADVANCE.key: {
         if (currentWordIndex >= furthestWordIndex) {
-          updateWordStats(currentWordText, true);
+          await updateWordStats(currentWordText, true);
           dispatch({ type: 'SET_FLASH_STATE', payload: 'green' });
         }
         
@@ -167,7 +167,7 @@ export function useNavigationModeKeyPress({
 
       case KEY_MAPPINGS.NAVIGATION_MODE.TRANSLATE_WORD.key: {
         if (currentWordIndex >= furthestWordIndex) {
-          updateWordStats(currentWordText, false);
+          await updateWordStats(currentWordText, false);
         }
         
         dispatch({ type: 'LOAD_INFO', payload: { displayType: 'wordTranslation' } });

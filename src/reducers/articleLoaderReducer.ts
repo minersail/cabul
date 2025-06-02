@@ -2,8 +2,6 @@ import { MAX_LEMONDE_ARTICLES } from "@/components/ArticleLoader";
 import { RedditPost, LeMondeArticle } from "@/types/articles";
 import { TokenizationResponse, ErrorMessage } from "@/utils/fetchApi";
 
-// Type for our word stats
-export type WordStats = [number, number]; // [total encounters, correct attempts]
 export type ArticleSource = 'reddit' | 'lemonde';
 
 export interface Message {
@@ -29,7 +27,6 @@ export interface ArticleCache<ArticleType> {
 }
 
 export interface ArticleLoaderState {
-  wordStats: Record<string, WordStats>;
   isLearningMode: boolean;
   tokenizationResult: TokenizationResponse | null;
   uiState: UIState;
@@ -51,11 +48,8 @@ export type ArticleLoaderAction =
   | { type: 'UPDATE_USER_CONFIG'; payload: Partial<UserConfig> }
   | { type: 'NEXT_POST' }
   | { type: 'SET_LEARNING_MODE'; payload: { isLearningMode: boolean } }
-  | { type: 'UPDATE_WORD_STATS'; payload: { word: string; wasCorrect: boolean } }
-  | { type: 'SET_WORD_STATS'; payload: { stats: Record<string, WordStats> } }
 
 export const initialState: ArticleLoaderState = {
-  wordStats: {},
   isLearningMode: false,
   tokenizationResult: null,
   uiState: {
@@ -208,30 +202,6 @@ export function articleLoaderReducer(
       return {
         ...state,
         isLearningMode: action.payload.isLearningMode
-      };
-
-    case 'UPDATE_WORD_STATS':
-      const { word, wasCorrect } = action.payload;
-      const [total, correct] = state.wordStats[word] || [0, 0];
-      const newStats = {
-        ...state.wordStats,
-        [word]: [total + 1, correct + (wasCorrect ? 1 : 0)] as WordStats
-      };
-      
-      // Update localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('vocabStats', JSON.stringify(newStats));
-      }
-      
-      return {
-        ...state,
-        wordStats: newStats
-      };
-
-    case 'SET_WORD_STATS':
-      return {
-        ...state,
-        wordStats: action.payload.stats
       };
 
     default:

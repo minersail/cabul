@@ -10,13 +10,13 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://postgres:postgres@localhost:54322/postgres"
 }
 
-// User table
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+// Profile table - references Supabase auth.users via UUID
+model Profile {
+  id        String   @id @db.Uuid // Supabase auth.users.id (UUID)
+  email     String?  @unique
   createdAt DateTime @default(now())
   
   // Relations
@@ -25,17 +25,17 @@ model User {
   mistakes   Mistake[]
   sessions   Session[]
   
-  @@map("users")
+  @@map("profiles")
 }
 
 // UserConfig table
 model UserConfig {
-  userid        Int     @id
+  profileId     String  @id @db.Uuid
   articleSource String
   autoScroll    Boolean
   
   // Relations
-  user User @relation(fields: [userid], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   
   @@map("user_config")
 }
@@ -51,19 +51,19 @@ model Lemma {
   @@map("lemmas")
 }
 
-// Lexicon table (composite primary key: userid + lemma)
+// Lexicon table (composite primary key: profileId + lemma)
 model Lexicon {
-  userid    Int
+  profileId String   @db.Uuid
   lemma     String
   seen      Int
   correct   Int
   firstSeen DateTime @default(now())
   
   // Relations
-  user      User  @relation(fields: [userid], references: [id], onDelete: Cascade)
-  lemmaRef  Lemma @relation(fields: [lemma], references: [lemma], onDelete: Cascade)
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  lemmaRef  Lemma   @relation(fields: [lemma], references: [lemma], onDelete: Cascade)
   
-  @@id([userid, lemma])
+  @@id([profileId, lemma])
   @@map("lexicon")
 }
 
@@ -83,14 +83,14 @@ model Token {
 // Mistake table
 model Mistake {
   mistakeId Int      @id @default(autoincrement())
-  userid    Int
+  profileId String   @db.Uuid
   token     String
   sentence  String?
   createdAt DateTime @default(now())
   
   // Relations
-  user     User  @relation(fields: [userid], references: [id], onDelete: Cascade)
-  tokenRef Token @relation(fields: [token], references: [text], onDelete: Cascade)
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tokenRef  Token   @relation(fields: [token], references: [text], onDelete: Cascade)
   
   @@map("mistakes")
 }
@@ -112,17 +112,17 @@ model Article {
   @@map("articles")
 }
 
-// Session table (composite primary key: userid + articleid)
+// Session table (composite primary key: profileId + articleid)
 model Session {
-  userid        Int
+  profileId     String  @db.Uuid
   articleid     Int
   furthestIndex Int
   currentIndex  Int
   
   // Relations
-  user    User    @relation(fields: [userid], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   article Article @relation(fields: [articleid], references: [id], onDelete: Cascade)
   
-  @@id([userid, articleid])
+  @@id([profileId, articleid])
   @@map("sessions")
 }

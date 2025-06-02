@@ -25,8 +25,17 @@ Keep these README sections current:
 - Architecture Overview
 - Setup instructions
 
+Important: Keep additions to README concise. Prefer adding to existing sections, rather than
+adding new sections. Avoid adding trivial information. The purpose of the README is for you
+to keep track of features and complexity, to best provide context for yourself in the future.
+Optimize the README for precise context for an AI model, not for a human reader.
+
+If you feel it adequate, you may add additional documentation in the docs/ folder to describe
+behavior you deem complex and important, so that you may go in depth without crowding the README.
+
 ## Development Patterns
 - Use reducer patterns for complex state management
-- Use Prisma for all database operations
+- Use Prisma for all database operations, implemented as server actions
+- Use the useAuth() hook for operations involving the user
 - Maintain TypeScript strict mode
 - Follow existing error handling patterns

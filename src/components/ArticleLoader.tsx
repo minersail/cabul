@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import VocabCanvas from "./VocabCanvas";
 import VocabStats from "./VocabStats";
 import InstructionPane from "./InstructionPane";
@@ -8,14 +8,9 @@ import OptionsPane from "./OptionsPane";
 import CollapsiblePanel from "./CollapsiblePanel";
 import { tokenizeText, getRedditPosts, getRandomLeMondeArticle, isErrorMessage } from "@/utils/fetchApi";
 import { Article } from "@/types/articles";
-import { ArticleCache, articleLoaderReducer, ArticleSource, initialState, Message, WordStats } from "@/reducers/articleLoaderReducer";
-
-// Helper function to get word stats from localStorage
-function getWordStats(): Record<string, WordStats> {
-  if (typeof window === 'undefined') return {};
-  const stats = localStorage.getItem('vocabStats');
-  return stats ? JSON.parse(stats) : {};
-}
+import { ArticleCache, articleLoaderReducer, ArticleSource, initialState, Message } from "@/reducers/articleLoaderReducer";
+import { addWordToVocabulary } from '@/lib/actions/vocabularyActions';
+import { useAuth } from '@/hooks/useAuth';
 
 function getCurrentArticle(cache: ArticleCache<Article>): Article | null {
   return (cache.articles.length > 0 && cache.currentIndex < cache.articles.length) ? 
@@ -30,15 +25,13 @@ export const MAX_LEMONDE_ARTICLES = 3;
 
 export default function ArticleLoader() {
   const [state, dispatch] = useReducer(articleLoaderReducer, initialState);
+  const { user } = useAuth();
+  
+  // Simple trigger that increments when vocabulary changes
+  const [vocabularyUpdateTrigger, setVocabularyUpdateTrigger] = useState(0);
 
   // Will return null and trigger a fetch if no article is cached
   const currentArticle: Article | null = getCurrentArticle(state.userConfig.articleSource === 'reddit' ? state.articles.redditCache : state.articles.leMondeCache);
-
-  // Load word stats from localStorage after component mounts to avoid hydration issues
-  useEffect(() => {
-    const stats = getWordStats();
-    dispatch({ type: 'SET_WORD_STATS', payload: { stats } });
-  }, []);
 
   // Lazily load articles
   useEffect(() => {
@@ -84,10 +77,27 @@ export default function ArticleLoader() {
     }
   }, [currentArticle]);
 
-  // Helper function to update word stats
-  const updateWordStats = (word: string, wasCorrect: boolean) => {
-    dispatch({ type: 'UPDATE_WORD_STATS', payload: { word, wasCorrect } });
-  }
+  // Helper function to update word stats - now saves directly to database
+  const updateWordStats = async (word: string, wasCorrect: boolean) => {
+    if (!user) {
+      console.warn('No user found, cannot update word stats');
+      return;
+    }
+
+    try {
+      // Update database directly using Server Action
+      const result = await addWordToVocabulary(user.id, word, wasCorrect);
+      
+      if (!result.success) {
+        console.error('Error updating word stats:', result.error);
+      } else {
+        // Trigger vocabulary refresh by incrementing the trigger
+        setVocabularyUpdateTrigger(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error updating word stats:', error);
+    }
+  };
 
   console.log(state);
 
@@ -202,7 +212,7 @@ export default function ArticleLoader() {
       </div>
 
       <CollapsiblePanel direction="vertical" className="mt-6">
-        <VocabStats wordStats={state.wordStats} />
+        <VocabStats refreshTrigger={vocabularyUpdateTrigger} />
       </CollapsiblePanel>
     </div>
   );

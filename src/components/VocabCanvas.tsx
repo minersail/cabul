@@ -10,7 +10,7 @@ import { useInput } from "@/hooks/useInput";
 interface VocabCanvasProps {
   content: string;
   tokenizationInfo: SpaCyTokenizationResponse;
-  updateWordStats: (word: string, wasCorrect: boolean) => void;
+  updateWordStats: (word: string, wasCorrect: boolean) => Promise<void>;
   isLearningMode: boolean;
   setIsLearningMode: React.Dispatch<boolean>;
 }
