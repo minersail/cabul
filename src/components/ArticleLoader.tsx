@@ -61,6 +61,7 @@ export default function ArticleLoader() {
   // Load database articles on component mount and source change
   useEffect(() => {
     const loadDatabaseArticles = async () => {
+      console.log(userConfig.articleSource);
       const currentCache = userConfig.articleSource === 'reddit' ? state.articles.redditCache : state.articles.leMondeCache;
       
       // Only load from database if we haven't already
@@ -110,7 +111,7 @@ export default function ArticleLoader() {
         } else {
           // For Le Monde: only load from API if database is empty
           const currentLeMondeCache = state.articles.leMondeCache;
-          if (currentLeMondeCache.articles.length < MAX_LEMONDE_ARTICLES) {
+          if (currentLeMondeCache.hasLoadedFromDatabase && currentLeMondeCache.articles.length === 0) {
             const result = await getRandomLeMondeArticle();
             if (isErrorMessage(result)) {
               dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
@@ -161,6 +162,18 @@ export default function ArticleLoader() {
       }
     } catch (error) {
       console.error('Error updating word stats:', error);
+    }
+  };
+
+  // Handler for loading a random Le Monde article
+  const loadRandomLeMondeArticle = async () => {
+    dispatch({ type: 'START_LOADING' });
+    
+    const result = await getRandomLeMondeArticle();
+    if (isErrorMessage(result)) {
+      dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
+    } else {
+      dispatch({ type: 'LEMONDE_LOADED', payload: { article: result } });
     }
   };
 
@@ -246,13 +259,13 @@ export default function ArticleLoader() {
               </div>
 
               {/* VocabCanvas */}
-              {state.uiState.isTokenizing && (
+              {state.uiState.tokenMessage.error && (
                 <div className={`p-6 text-center ${getErrorStyle(state.uiState.tokenMessage)}`} style={{ backgroundColor: '#f8f7f2', fontFamily: 'var(--font-crimson-text)' }}>
                   {state.uiState.tokenMessage.message}
                 </div>
               )}
 
-              {!state.uiState.isTokenizing && state.tokenizationResult && (
+              {!state.uiState.isTokenizing && !state.uiState.tokenMessage.error && state.tokenizationResult && (
                 <VocabCanvas 
                   key={currentArticle.url} 
                   content={currentArticle.content}
@@ -267,16 +280,32 @@ export default function ArticleLoader() {
             {/* Newspaper Footer */}
             <div className="border-t-2 border-black p-6" style={{ backgroundColor: '#f8f7f2' }}>
               <div className="mt-4 text-center">
-                <button
-                  onClick={() => dispatch({ type: 'NEXT_POST', payload: { articleSource: userConfig.articleSource } })}
-                  className="flex items-center mx-auto px-6 py-2 bg-black text-white hover:bg-gray-800 transition-colors duration-200 shadow-sm"
-                  style={{ fontFamily: 'var(--font-crimson-text)' }}
-                >
-                  Next Article
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => dispatch({ type: 'NEXT_POST', payload: { articleSource: userConfig.articleSource } })}
+                    className="flex items-center px-6 py-2 bg-black text-white hover:bg-gray-800 transition-colors duration-200 shadow-sm"
+                    style={{ fontFamily: 'var(--font-crimson-text)' }}
+                  >
+                    Next Article
+                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  
+                  {userConfig.articleSource === 'lemonde' && (
+                    <button
+                      onClick={loadRandomLeMondeArticle}
+                      disabled={state.uiState.isLoading}
+                      className="flex items-center px-6 py-2 bg-black text-white hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm"
+                      style={{ fontFamily: 'var(--font-crimson-text)' }}
+                    >
+                      Random Article
+                      <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Newspaper Bottom Border */}

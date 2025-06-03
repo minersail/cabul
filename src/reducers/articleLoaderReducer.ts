@@ -88,9 +88,8 @@ export function articleLoaderReducer(
         articles: {
           ...state.articles,
           redditCache: {
+            ...state.articles.redditCache,
             articles: [...action.payload.posts, ...state.articles.redditCache.articles],
-            currentIndex: state.articles.redditCache.currentIndex,
-            hasLoadedFromDatabase: state.articles.redditCache.hasLoadedFromDatabase
           },
         },
         uiState: {
@@ -106,9 +105,8 @@ export function articleLoaderReducer(
         articles: {
           ...state.articles,
           leMondeCache: {
-            articles: [...state.articles.leMondeCache.articles, action.payload.article],
-            currentIndex: state.articles.leMondeCache.currentIndex,
-            hasLoadedFromDatabase: state.articles.leMondeCache.hasLoadedFromDatabase
+            ...state.articles.leMondeCache,
+            articles: [action.payload.article, ...state.articles.leMondeCache.articles],
           },
         },
         uiState: {
@@ -232,12 +230,8 @@ export function articleLoaderReducer(
       const currentCache = articleSource === 'reddit' 
         ? state.articles.redditCache 
         : state.articles.leMondeCache;
-      
-      const maxArticles = articleSource === 'reddit' 
-        ? currentCache.articles.length 
-        : MAX_LEMONDE_ARTICLES;
 
-      const newIndex = (Math.min(currentCache.currentIndex, currentCache.articles.length) + 1) % maxArticles;
+      const newIndex = (currentCache.currentIndex + 1) % currentCache.articles.length;
 
       console.log(newIndex);
       return {

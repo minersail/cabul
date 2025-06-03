@@ -105,7 +105,7 @@ export function useUserConfig() {
 
   return {
     config,
-    loading,
+    configLoading: loading,
     error,
     updateConfig,
     saveConfig,

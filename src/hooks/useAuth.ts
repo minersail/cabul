@@ -6,26 +6,27 @@ import { upsertUserConfig } from '@/lib/actions/userConfigActions'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Initialize authentication - auto-sign in anonymously if no user
     const initializeAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      let { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
+        console.log("Initializing anonymous user.")
+
         // No user at all - sign in anonymously
-        const { error } = await supabase.auth.signInAnonymously()
-        if (error) {
+        const { error, data: { user: newUser } } = await supabase.auth.signInAnonymously()
+        if (error || !newUser) {
           console.error('Anonymous sign-in error:', error)
+          throw new Error('Anonymous sign-in error.');
         }
-      } else {
-        // User exists, set immediately but also ensure profile exists
-        setUser(user)
-        await handleUserSetup(user)
-      }
+
+        user = newUser;
+      } 
       
-      setLoading(false)
+      setUser(user)
+      await handleUserSetup(user)
     }
 
     initializeAuth()
@@ -41,7 +42,6 @@ export function useAuth() {
         }
         
         setUser(newUser)
-        setLoading(false)
       }
     )
 
@@ -147,7 +147,6 @@ export function useAuth() {
 
   return { 
     user, 
-    loading,
     signInWithEmail,
     signUpWithEmail,
     convertAnonymousUser,
