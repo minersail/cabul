@@ -6,13 +6,14 @@ import VocabStats from "./VocabStats";
 import InstructionPane from "./InstructionPane";
 import OptionsPane, { OptionConfig } from "./OptionsPane";
 import CollapsiblePanel from "./CollapsiblePanel";
-import { tokenizeText, getRedditPosts, getRandomLeMondeArticle, isErrorMessage, saveCurrentArticle } from "@/services/loaderService";
-import { Article, articleDataToTypedArticle, articleToCreateData } from "@/types/articles";
+import { tokenizeText, getRedditPosts, getRandomLeMondeArticle, getRandomScriptSlugScene, isErrorMessage, saveCurrentArticle } from "@/services/loaderService";
+import { Article, articleDataToTypedArticle } from "@/types/articles";
 import { ArticleCache, articleLoaderReducer, ArticleSource, initialState, Message } from "@/reducers/articleLoaderReducer";
 import { addWordToVocabulary } from '@/lib/actions/vocabularyActions';
 import { getArticlesBySource } from '@/lib/actions/articleActions';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserConfig } from '@/hooks/useUserConfig';
+import { getSourceLabel, getExternalLinkText, getSourceBadgeStyle } from '@/utils/articleSources';
 
 function getCurrentArticle(cache: ArticleCache<Article>): Article | null {
   return (cache.articles.length > 0 && cache.currentIndex < cache.articles.length) ? 
@@ -33,8 +34,22 @@ export default function ArticleLoader() {
   // Simple trigger that increments when vocabulary changes
   const [vocabularyUpdateTrigger, setVocabularyUpdateTrigger] = useState(0);
 
+  // Get current cache based on selected source
+  const getCurrentCache = () => {
+    switch (userConfig.articleSource) {
+      case 'reddit':
+        return state.articles.redditCache;
+      case 'lemonde':
+        return state.articles.leMondeCache;
+      case 'scriptslug':
+        return state.articles.scriptSlugCache;
+      default:
+        return state.articles.redditCache;
+    }
+  };
+
   // Will return null and trigger a fetch if no article is cached
-  const currentArticle: Article | null = getCurrentArticle(userConfig.articleSource === 'reddit' ? state.articles.redditCache : state.articles.leMondeCache);
+  const currentArticle: Article | null = getCurrentArticle(getCurrentCache());
 
   // Create dynamic options configuration
   const optionsConfig: OptionConfig[] = useMemo(() => [
@@ -46,7 +61,8 @@ export default function ArticleLoader() {
       onChange: (value: ArticleSource) => updateConfig('articleSource', value),
       options: [
         { value: 'reddit', label: 'Reddit Posts' },
-        { value: 'lemonde', label: 'Le Monde Articles' }
+        { value: 'lemonde', label: 'Le Monde Articles' },
+        { value: 'scriptslug', label: 'Movie Scripts' }
       ]
     },
     {
@@ -62,7 +78,7 @@ export default function ArticleLoader() {
   useEffect(() => {
     const loadDatabaseArticles = async () => {
       console.log(userConfig.articleSource);
-      const currentCache = userConfig.articleSource === 'reddit' ? state.articles.redditCache : state.articles.leMondeCache;
+      const currentCache = getCurrentCache();
       
       // Only load from database if we haven't already
       if (!currentCache.hasLoadedFromDatabase) {
@@ -71,18 +87,35 @@ export default function ArticleLoader() {
           if (result.success) {
             const typedArticles = result.data.map(articleDataToTypedArticle);
             
-            // Filter articles by type to ensure type safety
-            const filteredArticles = userConfig.articleSource === 'reddit' 
-              ? typedArticles.filter(article => article.type === 'reddit')
-              : typedArticles.filter(article => article.type === 'lemonde');
-            
-            dispatch({
-              type: 'DATABASE_ARTICLES_LOADED',
-              payload: {
-                articles: filteredArticles,
-                source: userConfig.articleSource
-              }
-            });
+            // Filter and type articles based on source
+            if (userConfig.articleSource === 'reddit') {
+              const filteredArticles = typedArticles.filter(article => article.type === 'reddit');
+              dispatch({
+                type: 'DATABASE_ARTICLES_LOADED',
+                payload: {
+                  articles: filteredArticles,
+                  source: userConfig.articleSource
+                }
+              });
+            } else if (userConfig.articleSource === 'lemonde') {
+              const filteredArticles = typedArticles.filter(article => article.type === 'lemonde');
+              dispatch({
+                type: 'DATABASE_ARTICLES_LOADED',
+                payload: {
+                  articles: filteredArticles,
+                  source: userConfig.articleSource
+                }
+              });
+            } else if (userConfig.articleSource === 'scriptslug') {
+              const filteredArticles = typedArticles.filter(article => article.type === 'scriptslug');
+              dispatch({
+                type: 'DATABASE_ARTICLES_LOADED',
+                payload: {
+                  articles: filteredArticles,
+                  source: userConfig.articleSource
+                }
+              });
+            }
           }
         } catch (error) {
           dispatch({ type: 'LOAD_ERROR', payload: { error: 'Error loading articles from database' } });
@@ -92,7 +125,7 @@ export default function ArticleLoader() {
     };
 
     loadDatabaseArticles();
-  }, [userConfig.articleSource, state.articles.redditCache.hasLoadedFromDatabase, state.articles.leMondeCache.hasLoadedFromDatabase]);
+  }, [userConfig.articleSource, getCurrentCache().hasLoadedFromDatabase]);
 
   // Lazily load articles from APIs
   useEffect(() => {
@@ -108,10 +141,10 @@ export default function ArticleLoader() {
           } else {
             dispatch({ type: 'REDDIT_LOADED', payload: { posts: result } });
           }
-        } else {
+        } else if (userConfig.articleSource === 'lemonde') {
           // For Le Monde: only load from API if database is empty
-          const currentLeMondeCache = state.articles.leMondeCache;
-          if (currentLeMondeCache.hasLoadedFromDatabase && currentLeMondeCache.articles.length === 0) {
+          const currentCache = getCurrentCache();
+          if (currentCache.hasLoadedFromDatabase && currentCache.articles.length === 0) {
             const result = await getRandomLeMondeArticle();
             if (isErrorMessage(result)) {
               dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
@@ -119,11 +152,19 @@ export default function ArticleLoader() {
               dispatch({ type: 'LEMONDE_LOADED', payload: { article: result } });
             }
           }
+        } else if (userConfig.articleSource === 'scriptslug') {
+          // For ScriptSlug: always load new scenes from API (they're random)
+          const result = await getRandomScriptSlugScene();
+          if (isErrorMessage(result)) {
+            dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
+          } else {
+            dispatch({ type: 'SCRIPTSLUG_LOADED', payload: { scene: result } });
+          }
         }
       };
       fetchArticles();
     }
-  }, [userConfig.articleSource, currentArticle, state.articles]);
+  }, [userConfig.articleSource, currentArticle]);
 
   // Tokenization effect
   useEffect(() => {
@@ -177,6 +218,18 @@ export default function ArticleLoader() {
     }
   };
 
+  // Handler for loading a new ScriptSlug scene
+  const loadRandomScriptSlugScene = async () => {
+    dispatch({ type: 'START_LOADING' });
+    
+    const result = await getRandomScriptSlugScene();
+    if (isErrorMessage(result)) {
+      dispatch({ type: 'LOAD_ERROR', payload: { error: result.error } });
+    } else {
+      dispatch({ type: 'SCRIPTSLUG_LOADED', payload: { scene: result } });
+    }
+  };
+
   return (
     <div>
       <div className="flex gap-6">
@@ -199,20 +252,32 @@ export default function ArticleLoader() {
                       {currentArticle.title}
                     </h2>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 text-xs rounded-full ${userConfig.articleSource === 'reddit' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
-                        {userConfig.articleSource === 'reddit' ? 'Reddit' : 'Le Monde'}
+                      <span className={`px-2 py-1 text-xs rounded-full ${getSourceBadgeStyle(userConfig.articleSource)}`}>
+                        {getSourceLabel(userConfig.articleSource)}
                       </span>
                       <button
                         onClick={() => saveCurrentArticle(currentArticle, dispatch)}
-                        disabled={state.uiState.isSaving}
+                        disabled={state.uiState.isSaving || !!currentArticle.articleId}
                         className="p-1 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
-                        title={state.uiState.isSaving ? 'Saving article...' : 'Save article to library'}
+                        title={
+                          currentArticle.articleId 
+                            ? 'Article already saved' 
+                            : state.uiState.isSaving 
+                              ? 'Saving article...' 
+                              : 'Save article to library'
+                        }
                       >
                         {state.uiState.isSaving ? (
                           <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
+                        ) : currentArticle.articleId ? (
+                          // Filled bookmark for saved articles
+                          <svg className="w-5 h-5" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                          </svg>
                         ) : (
+                          // Empty bookmark for unsaved articles
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                           </svg>
@@ -243,13 +308,21 @@ export default function ArticleLoader() {
                         <span>•</span>
                       </>
                     )}
+                    {currentArticle.type === 'scriptslug' && (
+                      <>
+                        <span>{currentArticle.sceneHeader}</span>
+                        <span>•</span>
+                        <span>{currentArticle.sceneIndex} of {currentArticle.totalScenes} scenes</span>
+                        <span>•</span>
+                      </>
+                    )}
                     <a 
                       href={currentArticle.url}
                       className="text-blue-600 hover:text-blue-800 flex items-center"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {currentArticle.type === 'reddit' ? 'View on Reddit' : 'View on Le Monde'}
+                      {getExternalLinkText(userConfig.articleSource)}
                       <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
@@ -300,6 +373,20 @@ export default function ArticleLoader() {
                       style={{ fontFamily: 'var(--font-crimson-text)' }}
                     >
                       Random Article
+                      <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {userConfig.articleSource === 'scriptslug' && (
+                    <button
+                      onClick={loadRandomScriptSlugScene}
+                      disabled={state.uiState.isLoading}
+                      className="flex items-center px-6 py-2 bg-black text-white hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm"
+                      style={{ fontFamily: 'var(--font-crimson-text)' }}
+                    >
+                      Random Scene
                       <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>

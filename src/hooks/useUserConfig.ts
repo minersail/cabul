@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { getUserConfig, upsertUserConfig, UserConfig } from '@/lib/actions/userConfigActions'
 import { useAuth } from './useAuth'
+import { ArticleSource } from '@/reducers/articleLoaderReducer'
 
 export interface ClientUserConfig {
-  articleSource: 'reddit' | 'lemonde';
+  articleSource: ArticleSource;
   autoScroll: boolean;
 }
 
@@ -65,7 +66,7 @@ export function useUserConfig() {
       if (result.success) {
         if (result.data) {
           setConfig({
-            articleSource: result.data.articleSource as 'reddit' | 'lemonde',
+            articleSource: result.data.articleSource as ArticleSource,
             autoScroll: result.data.autoScroll
           })
         } else {

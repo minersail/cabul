@@ -1,8 +1,8 @@
 import { SpaCyTokenizationResponse } from "@/types/tokenization";
-import { RedditPost, LeMondeArticle, Article, articleToCreateData } from "@/types/articles";
+import { RedditPost, LeMondeArticle, ScriptSlugScene, Article, articleToCreateData } from "@/types/articles";
 import { addArticle } from "@/lib/actions/articleActions";
 import { Dispatch } from "react";
-import { ArticleLoaderAction } from "@/reducers/articleLoaderReducer";
+import { ArticleLoaderAction, ArticleSource } from "@/reducers/articleLoaderReducer";
 export interface ErrorMessage {
   error: string;
 }
@@ -125,6 +125,55 @@ export async function getRandomLeMondeArticle(): Promise<LeMondeArticle | ErrorM
   }
 }
 
+export async function getRandomScriptSlugScene(pdfUrl?: string): Promise<ScriptSlugScene | ErrorMessage> {
+  try {
+    const targetUrl = pdfUrl || 'https://assets.scriptslug.com/live/pdf/scripts/the-grand-budapest-hotel-2014.pdf?v=1729115019';
+    
+    const response = await fetch('/api/scrape/scriptslug', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ pdfUrl: targetUrl }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ScriptSlug scene: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch ScriptSlug scene');
+    }
+
+    // Extract movie title from metadata or use fallback
+    const movieTitle = data.metadata?.title || 'Unknown Movie';
+    
+    // Create a descriptive title for the scene
+    const sceneTitle = `${movieTitle} - Scene ${data.randomSceneIndex}${data.sceneHeader ? `: ${data.sceneHeader}` : ''}`;
+
+    return {
+      type: 'scriptslug' as const,
+      title: sceneTitle,
+      content: data.randomSceneContent, // French translation
+      url: data.url,
+      author: movieTitle, // Use movie title as "author"
+      sceneHeader: data.sceneHeader || 'Scene',
+      sceneIndex: data.randomSceneIndex,
+      totalScenes: data.totalScenes,
+      movieTitle: movieTitle,
+      originalContent: data.originalSceneContent, // English original
+      wordCount: data.sceneWordCount,
+      pdfUrl: targetUrl
+    };
+
+  } catch (error) {
+    console.error('Error fetching ScriptSlug scene:', error);
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 // Type guard to check if a response is an error message
 export function isErrorMessage(response: any): response is ErrorMessage {
   return response && typeof response === 'object' && 'error' in response && typeof response.error === 'string';
@@ -136,6 +185,12 @@ export async function saveCurrentArticle(currentArticle: Article, dispatch: Disp
     return;
   }
 
+  // Skip saving if the article already has an ID (already saved)
+  if (currentArticle.articleId) {
+    console.log('Article already saved with ID:', currentArticle.articleId);
+    return;
+  }
+
   dispatch({ type: 'START_SAVING_ARTICLE' });
 
   try {
@@ -143,9 +198,14 @@ export async function saveCurrentArticle(currentArticle: Article, dispatch: Disp
     const result = await addArticle(createData);
 
     if (result.success) {
+      // Dispatch combined save action with ID update
       dispatch({ 
         type: 'ARTICLE_SAVED', 
-        payload: { message: `Article saved.` }
+        payload: { 
+          message: `Article saved.`,
+          articleId: result.data.id,
+          source: currentArticle.type as ArticleSource
+        }
       });
       
       // Clear the save message after 3 seconds

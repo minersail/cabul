@@ -3,6 +3,7 @@ interface BaseArticle {
   content: string;
   url: string;
   author: string;
+  articleId?: number; // Database ID, undefined for unsaved articles
 }
 
 export interface RedditPost extends BaseArticle {
@@ -17,8 +18,19 @@ export interface LeMondeArticle extends BaseArticle {
   wordCount: number;
 }
 
+export interface ScriptSlugScene extends BaseArticle {
+  type: 'scriptslug';
+  sceneHeader: string;
+  sceneIndex: number;
+  totalScenes: number;
+  movieTitle: string;
+  originalContent: string; // English original
+  wordCount: number;
+  pdfUrl: string;
+}
+
 // Unified article type - automatically stays in sync!
-export type Article = RedditPost | LeMondeArticle;
+export type Article = RedditPost | LeMondeArticle | ScriptSlugScene;
 
 // Import the database types
 import type { ArticleData, CreateArticleData } from '@/lib/actions/articleActions';
@@ -61,6 +73,29 @@ export function leMondeArticleToCreateData(article: LeMondeArticle): CreateArtic
 }
 
 /**
+ * Convert a ScriptSlugScene to database format for saving
+ */
+export function scriptSlugSceneToCreateData(scene: ScriptSlugScene): CreateArticleData {
+  return {
+    title: scene.title,
+    text: scene.content,
+    source: 'scriptslug',
+    url: scene.url,
+    author: scene.author,
+    metadata: {
+      sceneHeader: scene.sceneHeader,
+      sceneIndex: scene.sceneIndex,
+      totalScenes: scene.totalScenes,
+      movieTitle: scene.movieTitle,
+      originalContent: scene.originalContent,
+      wordCount: scene.wordCount,
+      pdfUrl: scene.pdfUrl,
+      type: 'scriptslug'
+    }
+  };
+}
+
+/**
  * Convert database ArticleData back to typed article format
  */
 export function articleDataToTypedArticle(dbArticle: ArticleData): Article {
@@ -68,7 +103,8 @@ export function articleDataToTypedArticle(dbArticle: ArticleData): Article {
     title: dbArticle.title,
     content: dbArticle.text,
     url: dbArticle.url,
-    author: dbArticle.author || 'Unknown'
+    author: dbArticle.author || 'Unknown',
+    articleId: dbArticle.id // Include database ID
   };
 
   if (dbArticle.source === 'reddit') {
@@ -84,6 +120,18 @@ export function articleDataToTypedArticle(dbArticle: ArticleData): Article {
       description: dbArticle.metadata?.description || '',
       publishDate: dbArticle.metadata?.publishDate || '',
       wordCount: dbArticle.metadata?.wordCount || 0
+    };
+  } else if (dbArticle.source === 'scriptslug') {
+    return {
+      ...baseFields,
+      type: 'scriptslug' as const,
+      sceneHeader: dbArticle.metadata?.sceneHeader || '',
+      sceneIndex: dbArticle.metadata?.sceneIndex || 1,
+      totalScenes: dbArticle.metadata?.totalScenes || 1,
+      movieTitle: dbArticle.metadata?.movieTitle || 'Unknown Movie',
+      originalContent: dbArticle.metadata?.originalContent || '',
+      wordCount: dbArticle.metadata?.wordCount || 0,
+      pdfUrl: dbArticle.metadata?.pdfUrl || ''
     };
   }
 
@@ -101,7 +149,9 @@ export function articleDataToTypedArticle(dbArticle: ArticleData): Article {
 export function articleToCreateData(article: Article): CreateArticleData {
   if (article.type === 'reddit') {
     return redditPostToCreateData(article);
-  } else {
+  } else if (article.type === 'lemonde') {
     return leMondeArticleToCreateData(article);
+  } else {
+    return scriptSlugSceneToCreateData(article);
   }
 } 

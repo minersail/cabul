@@ -17,6 +17,7 @@
 - **Article Service**: Database operations for article CRUD (add, fetch by source, delete)
 - **Local Development Environment**: Supabase local stack + Docker
 - **Anonymous Authentication**: Auto-sign in with seamless conversion to permanent accounts
+- **Movie Script Learning**: ScriptSlug PDF parsing with OpenAI-powered French translation for cinematic vocabulary learning
 
 ### 🚧 IN PROGRESS (Higher Priority)
 - **Hosting**: Local setup complete, production deployment pending
@@ -32,6 +33,10 @@
 ### Architecture Guides
 - **[Supabase Migration Guide](docs/SUPABASE_MIGRATION.md)**: Detailed explanation of Profile-based architecture and Supabase auth integration
 
+### Translation Services
+- **Movie Localization**: Professional French screenplay translation using specialized OpenAI prompts (`src/lib/prompts/movieLocalization.ts`)
+- **General Translation**: DeepL integration for word/sentence translation (`src/lib/translate.ts`)
+
 ## Architecture Overview
 
 ### Core Data Flow
@@ -39,9 +44,17 @@ ArticleLoader → TokenizationAPI → VocabCanvas → VocabToken → KeyboardNav
 
 ### State Management Pattern
 **Reducer-based architecture** with clear action types:
-- `ArticleLoaderReducer`: Article caching, tokenization, user config, loading states
+- `ArticleLoaderReducer`: Article caching, tokenization, user config, loading states (supports Reddit, Le Monde, ScriptSlug)
 - `VocabCanvasReducer`: Current word position, learning state, API responses
 - Database Services: Persistent vocabulary and progress tracking (anonymous + authenticated users)
+
+### Article Source System
+**Three Learning Sources:**
+- **Reddit**: French community posts from r/france (social/informal French)
+- **Le Monde**: Professional journalism articles (formal/news French)  
+- **ScriptSlug**: Movie script scenes with professional French translation (cinematic/dialogue French)
+
+All sources integrate seamlessly with the same vocabulary tracking and learning interface.
 
 ### Key Component Relationships
 ```
@@ -116,6 +129,7 @@ NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[local_key]
 HUGGINGFACE_API_KEY=[required]
 DEEPL_API_KEY=[required]
+OPENAI_API_KEY=[required_for_movie_translation]
 ```
 
 ## Tech Stack
@@ -159,3 +173,5 @@ npx prisma generate  # Regenerate Prisma client
 - 2025-06-01: Implemented anonymous authentication with seamless account conversion
 - 2025-06-01: Centralized auth logic in useAuth hook
 - 2025-06-02: Implemented article database operations (addArticle, getArticlesBySource)
+- 2025-06-03: Added ScriptSlug movie script parsing and OpenAI-powered French translation for cinematic vocabulary learning
+- 2025-06-03: Integrated ScriptSlug as native article source in main learning interface with full caching, database storage, and UI support

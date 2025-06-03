@@ -1,8 +1,8 @@
 import { MAX_LEMONDE_ARTICLES } from "@/components/ArticleLoader";
-import { RedditPost, LeMondeArticle } from "@/types/articles";
+import { RedditPost, LeMondeArticle, ScriptSlugScene } from "@/types/articles";
 import { TokenizationResponse, ErrorMessage } from "@/services/loaderService";
 
-export type ArticleSource = 'reddit' | 'lemonde';
+export type ArticleSource = 'reddit' | 'lemonde' | 'scriptslug';
 
 export interface Message {
   message: string;
@@ -31,6 +31,7 @@ export interface ArticleLoaderState {
   articles: {
     redditCache: ArticleCache<RedditPost>;
     leMondeCache: ArticleCache<LeMondeArticle>;
+    scriptSlugCache: ArticleCache<ScriptSlugScene>;
   };
 }
 
@@ -38,13 +39,14 @@ export type ArticleLoaderAction =
   | { type: 'START_LOADING' }
   | { type: 'REDDIT_LOADED'; payload: { posts: RedditPost[] } }
   | { type: 'LEMONDE_LOADED'; payload: { article: LeMondeArticle } }
-  | { type: 'DATABASE_ARTICLES_LOADED'; payload: { articles: RedditPost[] | LeMondeArticle[]; source: ArticleSource } }
+  | { type: 'SCRIPTSLUG_LOADED'; payload: { scene: ScriptSlugScene } }
+  | { type: 'DATABASE_ARTICLES_LOADED'; payload: { articles: RedditPost[] | LeMondeArticle[] | ScriptSlugScene[]; source: ArticleSource } }
   | { type: 'LOAD_ERROR'; payload: { error: string } }
   | { type: 'START_TOKENIZING' }
   | { type: 'TOKENIZED'; payload: { result: TokenizationResponse } }
   | { type: 'TOKENIZE_ERROR'; payload: { error: string } }
   | { type: 'START_SAVING_ARTICLE' }
-  | { type: 'ARTICLE_SAVED'; payload: { message: string } }
+  | { type: 'ARTICLE_SAVED'; payload: { message: string; articleId?: number; source?: ArticleSource } }
   | { type: 'SAVE_ARTICLE_ERROR'; payload: { error: string } }
   | { type: 'NEXT_POST'; payload: { articleSource: ArticleSource } }
   | { type: 'SET_LEARNING_MODE'; payload: { isLearningMode: boolean } }
@@ -63,6 +65,7 @@ export const initialState: ArticleLoaderState = {
   articles: {
     redditCache: { articles: [], currentIndex: 0, hasLoadedFromDatabase: false },
     leMondeCache: { articles: [], currentIndex: 0, hasLoadedFromDatabase: false },
+    scriptSlugCache: { articles: [], currentIndex: 0, hasLoadedFromDatabase: false },
   }
 };
 
@@ -116,6 +119,23 @@ export function articleLoaderReducer(
         }
       };
 
+    case 'SCRIPTSLUG_LOADED':
+      return {
+        ...state,
+        articles: {
+          ...state.articles,
+          scriptSlugCache: {
+            ...state.articles.scriptSlugCache,
+            articles: [action.payload.scene, ...state.articles.scriptSlugCache.articles],
+          },
+        },
+        uiState: {
+          ...state.uiState,
+          isLoading: false,
+          loadMessage: { message: "", error: false }
+        }
+      };
+
     case 'DATABASE_ARTICLES_LOADED':
       if (action.payload.source === 'reddit') {
         return {
@@ -133,7 +153,7 @@ export function articleLoaderReducer(
             loadMessage: { message: "", error: false }
           }
         };
-      } else {
+      } else if (action.payload.source === 'lemonde') {
         return {
           ...state,
           articles: {
@@ -150,7 +170,26 @@ export function articleLoaderReducer(
             loadMessage: { message: "", error: false }
           }
         };
+      } else if (action.payload.source === 'scriptslug') {
+        return {
+          ...state,
+          articles: {
+            ...state.articles,
+            scriptSlugCache: {
+              articles: action.payload.articles as ScriptSlugScene[],
+              currentIndex: state.articles.scriptSlugCache.currentIndex,
+              hasLoadedFromDatabase: true
+            }
+          },
+          uiState: {
+            ...state.uiState,
+            isLoading: false,
+            loadMessage: { message: "", error: false }
+          }
+        };
       }
+
+      return state;
 
     case 'LOAD_ERROR':
       return {
@@ -206,7 +245,7 @@ export function articleLoaderReducer(
       };
 
     case 'ARTICLE_SAVED':
-      return {
+      let updatedState = {
         ...state,
         uiState: {
           ...state.uiState,
@@ -214,6 +253,28 @@ export function articleLoaderReducer(
           saveMessage: { message: action.payload.message, error: false }
         }
       };
+
+      // If articleId and source are provided, update the current article's ID
+      if (action.payload.articleId && action.payload.source) {
+        const [currentCache, cacheKey] = getCache(state, action.payload.source);
+        
+        updatedState = {
+          ...updatedState,
+          articles: {
+            ...updatedState.articles,
+            [cacheKey]: {
+              ...currentCache,
+              articles: currentCache.articles.map((article, index) =>
+                index === currentCache.currentIndex 
+                  ? { ...article, articleId: action.payload.articleId }
+                  : article
+              )
+            }
+          }
+        };
+      }
+
+      return updatedState;
 
     case 'SAVE_ARTICLE_ERROR':
       return {
@@ -227,9 +288,7 @@ export function articleLoaderReducer(
 
     case 'NEXT_POST':
       const articleSource = action.payload.articleSource;
-      const currentCache = articleSource === 'reddit' 
-        ? state.articles.redditCache 
-        : state.articles.leMondeCache;
+      const [currentCache, cacheKey] = getCache(state, articleSource);
 
       const newIndex = (currentCache.currentIndex + 1) % currentCache.articles.length;
 
@@ -238,7 +297,7 @@ export function articleLoaderReducer(
         ...state,
         articles: {
           ...state.articles,
-          [articleSource === 'reddit' ? 'redditCache' : 'leMondeCache']: {
+          [cacheKey]: {
             ...currentCache,
             currentIndex: newIndex
           }
@@ -259,4 +318,14 @@ export function articleLoaderReducer(
     default:
       return state;
   }
-} 
+}
+
+function getCache(state: ArticleLoaderState, source: ArticleSource): [ArticleCache<any>, string] {
+  if (source === 'reddit') {
+    return [state.articles.redditCache, 'redditCache'];
+  } else if (source === 'lemonde') {
+    return [state.articles.leMondeCache, 'leMondeCache'];
+  } else {
+    return [state.articles.scriptSlugCache, 'scriptSlugCache'];
+  }
+}
