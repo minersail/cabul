@@ -1,44 +1,62 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
-import { createUserProfile } from '@/lib/actions/userActions'
+import { createClient } from '@/lib/supabase/client'
+import { createUserProfile, updateLastAccessedInternal } from '@/lib/actions/userActions'
 import { upsertUserConfig } from '@/lib/actions/userConfigActions'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
+  
+  // Create a single client instance for the entire hook
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     // Initialize authentication - auto-sign in anonymously if no user
     const initializeAuth = async () => {
-      let { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        console.log("Initializing anonymous user.")
+      try {
+        console.log('initializing auth')
+        let { data: { user }, error } = await supabase.auth.getUser()
 
-        // No user at all - sign in anonymously
-        const { error, data: { user: newUser } } = await supabase.auth.signInAnonymously()
-        if (error || !newUser) {
-          console.error('Anonymous sign-in error:', error)
-          throw new Error('Anonymous sign-in error.');
+        if (error) {
+          console.error('Error getting user:', error)
         }
+        console.log('user in useAuth', user)
 
-        user = newUser;
-      } 
-      
-      setUser(user)
-      await handleUserSetup(user)
+        if (!user) {
+          // No user at all - sign in anonymously
+          const { error: signInError, data: { user: newUser } } = await supabase.auth.signInAnonymously()
+          
+          if (signInError || !newUser) {
+            console.error('Anonymous sign-in error:', signInError)
+            throw new Error('Anonymous sign-in error.');
+          }
+
+          user = newUser;
+        }
+        console.log('user in useAuth', user)
+        
+        await handleUserSetup(user)
+        setUser(user)
+        
+      } catch (error) {
+        console.error('Auth initialization failed:', error)
+        // Don't throw here - let the app continue
+      }
     }
 
     initializeAuth()
 
-    // Listen for auth changes
+    // Listen for auth changes - avoid async callback to prevent deadlocks
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         const newUser = session?.user ?? null
         
         if (event === 'SIGNED_IN' && newUser) {
-          // Wait for user setup to complete before setting user state
-          await handleUserSetup(newUser)
+          // Use setTimeout to defer async operations until after callback finishes
+          // This prevents deadlocks as recommended by Supabase documentation
+          setTimeout(async () => {
+            await handleUserSetup(newUser)
+          }, 0)
         }
         
         setUser(newUser)
@@ -46,7 +64,7 @@ export function useAuth() {
     )
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase])
 
   const handleUserSetup = async (authUser: User) => {
     try {
@@ -61,20 +79,17 @@ export function useAuth() {
       if (!existingProfile && error?.code === 'PGRST116') {
         // For anonymous users, use null email; for authenticated users, use their email
         const email = authUser.is_anonymous ? null : (authUser.email || null)
+        
         const result = await createUserProfile(authUser.id, email)
         
         if (result.success) {
-          console.log(`Created profile for ${authUser.is_anonymous ? 'anonymous' : 'authenticated'} user`)
-          
           // Create default user config for new profile
           const configResult = await upsertUserConfig(authUser.id, {
             articleSource: 'reddit',
             autoScroll: false
           })
           
-          if (configResult.success) {
-            console.log('Created default user config')
-          } else {
+          if (!configResult.success) {
             console.error('Failed to create default user config:', configResult.error)
           }
         } else {
@@ -82,11 +97,17 @@ export function useAuth() {
           // Don't throw here - let the app continue, vocabulary actions will handle the missing profile gracefully
         }
       } else if (existingProfile) {
-        console.log('Profile already exists for user')
+        // Update lastAccessed timestamp for existing profile
+        const updateResult = await updateLastAccessedInternal(authUser.id)
+        
+        if (!updateResult.success) {
+          console.error('Failed to update last accessed:', updateResult.error)
+        }
       } else if (error) {
         console.error('Error checking for existing profile:', error)
         // Don't throw - let the app continue
       }
+      
     } catch (error) {
       console.error('Error setting up user:', error)
       // Don't re-throw - let the app continue, vocabulary actions will handle missing profile gracefully
@@ -129,7 +150,6 @@ export function useAuth() {
         .update({ email })
         .eq('id', user.id)
         
-      console.log('Successfully converted to permanent account')
       return { error: null }
     } catch (error: any) {
       console.error('Conversion error:', error)

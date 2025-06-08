@@ -1,18 +1,44 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
-  
-  const { data: { session } } = await supabase.auth.getSession()
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // Refresh session if expired - required for Server Components
+  await supabase.auth.getUser()
 
   // Protect app routes - redirect to login if not authenticated
-  if (req.nextUrl.pathname.startsWith('/app') && !session) {
-    return NextResponse.redirect(new URL('/login', req.url))
+  const { data: { session } } = await supabase.auth.getSession()
+  if (request.nextUrl.pathname.startsWith('/app') && !session) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  return res
+  return supabaseResponse
 }
 
 export const config = {

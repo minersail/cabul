@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma';
+import { validateAuth } from '@/lib/validateAuth';
 
 /**
  * Server Actions for vocabulary management
@@ -22,6 +23,12 @@ export async function addWordToVocabulary(
   lemma: string,
   wasCorrect: boolean
 ): Promise<{ success: true; data: VocabularyEntry } | { success: false; error: string }> {
+  // Validate authentication and authorization
+  const authResult = await validateAuth(profileId);
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     // First ensure the profile exists (foreign key constraint requirement)
     const profileExists = await prisma.profile.findUnique({
@@ -85,6 +92,12 @@ export async function addWordToVocabulary(
 export async function getUserVocabulary(
   profileId: string
 ): Promise<{ success: true; data: VocabularyEntry[] } | { success: false; error: string }> {
+  // Validate authentication and authorization
+  const authResult = await validateAuth(profileId);
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     const lexiconEntries = await prisma.lexicon.findMany({
       where: {
@@ -116,6 +129,12 @@ export async function getUserVocabulary(
 export async function deleteUserVocabulary(
   profileId: string
 ): Promise<{ success: true; data: number } | { success: false; error: string }> {
+  // Validate authentication and authorization
+  const authResult = await validateAuth(profileId);
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     const deleteResult = await prisma.lexicon.deleteMany({
       where: {

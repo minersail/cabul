@@ -28,21 +28,23 @@ export async function tokenizeText(text: string): Promise<TokenizationResponse> 
       }),
     });
     
-    const data = (await response.json())[0];
+    const data = await response.json();
     console.log("Tokenization result:", data);
 
     if (!response.ok) {
       throw new Error(data.error || 'Failed to tokenize content (server response not OK)');
     }
+
+    let tokenResult = data[0];
     
     // Even if response.ok, the Hugging Face API might return an error structure
     // or a success structure that doesn't contain tokens (e.g. model loading message)
-    if (!data.tokens || !Array.isArray(data.tokens)) {
+    if (!tokenResult.tokens || !Array.isArray(tokenResult.tokens)) {
       console.error("Tokenization successful but tokens are missing or not an array:", data);
       throw new Error(data.error || 'Tokenization API returned unexpected payload.');
     }
     
-    return data;
+    return tokenResult;
   } catch (error) {
     console.error('Tokenization error:', error);
     return {

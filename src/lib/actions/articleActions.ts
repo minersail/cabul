@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma';
+import { validateAuthOnly } from '@/lib/validateAuth';
 
 /**
  * Server Actions for article management
@@ -33,6 +34,12 @@ export interface CreateArticleData {
 export async function addArticle(
   articleData: CreateArticleData
 ): Promise<{ success: true; data: ArticleData } | { success: false; error: string }> {
+  // Validate authentication
+  const authResult = await validateAuthOnly();
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     // Check if article already exists by URL to avoid duplicates
     const existingArticle = await prisma.article.findFirst({
@@ -195,6 +202,12 @@ export async function getArticleById(
 export async function deleteArticle(
   id: number
 ): Promise<{ success: true; data: number } | { success: false; error: string }> {
+  // Validate authentication
+  const authResult = await validateAuthOnly();
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     // Check if article exists
     const existingArticle = await prisma.article.findUnique({

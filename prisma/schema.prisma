@@ -10,14 +10,16 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://postgres:postgres@localhost:54322/postgres"
+  url      = env("DATABASE_URL")
 }
 
 // Profile table - references Supabase auth.users via UUID
 model Profile {
-  id        String   @id @db.Uuid // Supabase auth.users.id (UUID)
-  email     String?  @unique
-  createdAt DateTime @default(now())
+  id           String    @id @db.Uuid // Supabase auth.users.id (UUID)
+  email        String?   @unique
+  isAdmin      Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  lastAccessed DateTime?
   
   // Relations
   userConfig UserConfig?

@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma';
+import { validateAuth } from '@/lib/validateAuth';
 
 /**
  * Server Actions for user configuration management
@@ -19,6 +20,12 @@ export interface UserConfig {
 export async function getUserConfig(
   profileId: string
 ): Promise<{ success: true; data: UserConfig | null } | { success: false; error: string }> {
+  // Validate authentication and authorization
+  const authResult = await validateAuth(profileId);
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     const userConfig = await prisma.userConfig.findUnique({
       where: { profileId }
@@ -38,6 +45,12 @@ export async function upsertUserConfig(
   profileId: string,
   config: { articleSource?: string; autoScroll?: boolean }
 ): Promise<{ success: true; data: UserConfig } | { success: false; error: string }> {
+  // Validate authentication and authorization
+  const authResult = await validateAuth(profileId);
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     const userConfig = await prisma.userConfig.upsert({
       where: { profileId },
@@ -63,6 +76,12 @@ export async function updateUserConfig(
   profileId: string,
   updates: { articleSource?: string; autoScroll?: boolean }
 ): Promise<{ success: true; data: UserConfig } | { success: false; error: string }> {
+  // Validate authentication and authorization
+  const authResult = await validateAuth(profileId);
+  if (!authResult.success) {
+    return authResult;
+  }
+
   try {
     const userConfig = await prisma.userConfig.update({
       where: { profileId },
