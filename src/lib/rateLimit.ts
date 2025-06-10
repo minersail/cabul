@@ -115,7 +115,7 @@ export interface RateLimitConfig {
 
 /**
  * Check rate limit for a given identifier and endpoint type
- * @param identifier - Usually user ID, IP address, or session ID
+ * @param identifier - Usually user ID, or IP address
  * @param type - Type of endpoint being accessed
  * @returns Rate limit result with success status and metadata
  */

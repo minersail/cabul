@@ -1,4 +1,3 @@
-import { getCompositionColor } from "@/utils/tokenization";
 import { SpaCyToken } from "@/types/tokenization";
 
 export type InformationDisplayType = 'wordTranslation' | 'sentenceTranslation' | 'wiktionary' | 'phraseDetection' | 'none';
@@ -167,11 +166,23 @@ function SentenceTranslationDisplay({ info, isLoading }: { info?: SentenceTransl
  * Component to display Wiktionary information
  */
 function WiktionaryDisplay({ info, isLoading }: { info?: WiktionaryInfo, isLoading: boolean }) {
-  // Helper function to decode HTML entities
+  // Helper function to safely decode HTML entities
   const decodeHTML = (html: string) => {
-    const txt = document.createElement('textarea');
-    txt.innerHTML = html;
-    return txt.value;
+    try {
+      // Use DOMParser for safe HTML entity decoding
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      return doc.documentElement.textContent || html;
+    } catch {
+      // Fallback: basic entity replacement for common cases
+      return html
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ');
+    }
   };
 
   if (isLoading) {

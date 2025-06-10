@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
 # Vocab Herald - AI Assistant Rules
 
 ## Context Loading (Start of Every Conversation)
@@ -38,4 +43,4 @@ behavior you deem complex and important, so that you may go in depth without cro
 - Use Prisma for all database operations, implemented as server actions
 - Use the useAuth() hook for operations involving the user
 - Maintain TypeScript strict mode
-- Follow existing error handling patterns
+- Follow existing error handling patterns 

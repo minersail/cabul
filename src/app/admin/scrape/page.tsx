@@ -14,34 +14,6 @@ interface ScrapeResult {
   rawHtmlLength: number;
 }
 
-interface ArchiveResult {
-  success: boolean;
-  archiveDate: string;
-  archiveUrl: string;
-  totalArticles: number;
-  premiumArticles: number;
-  freeArticles: number;
-  articles: Array<{
-    url: string;
-    title: string;
-    description: string;
-    isPremium: boolean;
-    category: string;
-    author: string;
-    publishDate: string;
-  }>;
-}
-
-interface RandomArticleResult extends ScrapeResult {
-  randomDate: string;
-  archiveUrl: string;
-  selectedFromArchive: {
-    totalArticles: number;
-    premiumArticles: number;
-    freeArticles: number;
-  };
-}
-
 interface ErrorDetails {
   status?: number;
   statusText?: string;
@@ -58,11 +30,7 @@ export default function ScrapePage() {
   const [url, setUrl] = useState('https://www.lemonde.fr/politique/article/2024/12/20/budget-2025-michel-barnier-renonce-a-faire-adopter-le-projet-de-loi-de-financement-de-la-securite-sociale_6398234_823448.html');
   const [archiveDate, setArchiveDate] = useState('01-05-2025');
   const [result, setResult] = useState<ScrapeResult | null>(null);
-  const [archiveResult, setArchiveResult] = useState<ArchiveResult | null>(null);
-  const [randomResult, setRandomResult] = useState<RandomArticleResult | null>(null);
   const [error, setError] = useState<string | ErrorResponse>('');
-  const [archiveError, setArchiveError] = useState<string | ErrorResponse>('');
-  const [randomError, setRandomError] = useState<string | ErrorResponse>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isArchiveLoading, setIsArchiveLoading] = useState(false);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
@@ -73,10 +41,6 @@ export default function ScrapePage() {
     setError('');
     setResult(null);
     // Clear other results when starting single article scrape
-    setArchiveResult(null);
-    setRandomResult(null);
-    setArchiveError('');
-    setRandomError('');
     setIsLoading(true);
 
     try {
@@ -106,13 +70,9 @@ export default function ScrapePage() {
 
   const handleArchiveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setArchiveError('');
-    setArchiveResult(null);
     // Clear other results when starting archive scrape
     setResult(null);
-    setRandomResult(null);
     setError('');
-    setRandomError('');
     setIsArchiveLoading(true);
 
     try {
@@ -134,26 +94,23 @@ export default function ScrapePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setArchiveError(data);
+        setError(data);
         return;
       }
 
-      setArchiveResult(data);
+      setResult(data);
     } catch (err) {
-      setArchiveError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsArchiveLoading(false);
     }
   };
 
   const handleRandomArticle = async () => {
-    setRandomError('');
-    setRandomResult(null);
+    setError('');
     // Clear other results when starting random article
     setResult(null);
-    setArchiveResult(null);
     setError('');
-    setArchiveError('');
     setIsRandomLoading(true);
 
     try {
@@ -170,13 +127,13 @@ export default function ScrapePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setRandomError(data);
+        setError(data);
         return;
       }
 
-      setRandomResult(data);
+      setResult(data);
     } catch (err) {
-      setRandomError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsRandomLoading(false);
     }
@@ -194,11 +151,7 @@ export default function ScrapePage() {
     // Clear all results and errors when switching tabs
     setActiveTab(newTab);
     setResult(null);
-    setArchiveResult(null);
-    setRandomResult(null);
     setError('');
-    setArchiveError('');
-    setRandomError('');
   };
 
   const tabs = [
@@ -220,7 +173,7 @@ export default function ScrapePage() {
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => handleTabChange(tab.id as any)}
+                    onClick={() => handleTabChange(tab.id as 'single' | 'archive' | 'random')}
                     className={`py-2 px-1 border-b-2 font-medium text-sm ${
                       activeTab === tab.id
                         ? 'border-indigo-500 text-indigo-600'

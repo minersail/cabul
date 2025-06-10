@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getUserConfig, upsertUserConfig, UserConfig } from '@/lib/actions/userConfigActions'
+import { getUserConfig, upsertUserConfig } from '@/lib/actions/userConfigActions'
 import { useAuth } from './useAuth'
 import { ArticleSource } from '@/reducers/articleLoaderReducer'
 
@@ -94,6 +94,7 @@ export function useUserConfig() {
   }, [user?.id])
 
   // Update a single config field
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateConfig = useCallback(async (field: keyof ClientUserConfig, value: any) => {
     const newConfig = { [field]: value }
     await saveConfig(newConfig)

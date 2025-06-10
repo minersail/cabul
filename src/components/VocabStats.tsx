@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { deleteUserVocabulary, getUserVocabulary, VocabularyEntry } from '@/lib/actions/vocabularyActions';
 import { useAuth } from '@/hooks/useAuth';
+import { User } from '@supabase/supabase-js';
 
 interface VocabStatsProps {
   refreshTrigger?: number; // When this number changes, refresh the vocabulary
@@ -46,7 +47,7 @@ function VocabStatsHeader({
   onClearStats, 
   isClearing,
 }: { 
-  user: any; 
+  user: User | null; 
   onClearStats: () => void; 
   isClearing: boolean; 
 }) {
@@ -87,7 +88,7 @@ function VocabStatsHeader({
 }
 
 export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
-  const [stats, setStats] = useState<VocabularyEntry[]>([]);
+  const [rawStats, setRawStats] = useState<VocabularyEntry[]>([]);
   const [sortBy, setSortBy] = useState<'word' | 'total' | 'percentage'>('total');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isClearing, setIsClearing] = useState(false);
@@ -97,7 +98,7 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
   // Load vocabulary from database
   const loadVocabulary = useCallback(async () => {
     if (!user) {
-      setStats([]);
+      setRawStats([]);
       return;
     }
 
@@ -105,14 +106,14 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
       const result = await getUserVocabulary(user.id);
       
       if (result.success) {
-        setStats(result.data);
+        setRawStats(result.data);
       } else {
         console.error('Failed to load vocabulary:', result.error);
-        setStats([]);
+        setRawStats([]);
       }
     } catch (error) {
       console.error('Error loading vocabulary:', error);
-      setStats([]);
+      setRawStats([]);
     }
   }, [user]);
 
@@ -121,34 +122,9 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
     loadVocabulary();
   }, [loadVocabulary, refreshTrigger]);
 
-  const handleClearStats = async () => {
-    if (!user) return;
-    
-    try {
-      setIsClearing(true);
-      
-      // Clear vocabulary from database
-      const result = await deleteUserVocabulary(user.id);
-      
-      if (result.success) {
-        // Update local state
-        setStats([]);
-        console.log('Vocabulary cleared successfully');
-      } else {
-        console.error('Failed to clear vocabulary:', result.error);
-        alert('Failed to clear vocabulary. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error clearing vocabulary:', error);
-      alert('Failed to clear vocabulary. Please try again.');
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
-  // Sort stats when sorting criteria changes
-  useEffect(() => {
-    const sortedStats = [...stats].sort((a, b) => {
+  // Compute sorted stats - no infinite loop!
+  const sortedStats = useMemo(() => {
+    return [...rawStats].sort((a, b) => {
       if (sortBy === 'word') {
         return sortOrder === 'asc' ? 
           a.lemma.localeCompare(b.lemma) : 
@@ -168,9 +144,32 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
       
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
+  }, [rawStats, sortBy, sortOrder]);
 
-    setStats(sortedStats);
-  }, [sortBy, sortOrder]);
+  const handleClearStats = async () => {
+    if (!user) return;
+    
+    try {
+      setIsClearing(true);
+      
+      // Clear vocabulary from database
+      const result = await deleteUserVocabulary(user.id);
+      
+      if (result.success) {
+        // Update local state
+        setRawStats([]);
+        console.log('Vocabulary cleared successfully');
+      } else {
+        console.error('Failed to clear vocabulary:', result.error);
+        alert('Failed to clear vocabulary. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error clearing vocabulary:', error);
+      alert('Failed to clear vocabulary. Please try again.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   const handleSort = (newSortBy: 'word' | 'total' | 'percentage') => {
     if (sortBy === newSortBy) {
@@ -189,11 +188,11 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
         isClearing={isClearing} 
       />
 
-      { stats.length === 0 &&
+      { sortedStats.length === 0 &&
         <p style={{ fontFamily: 'var(--font-pangolin)', color: '#374151' }}className="transform rotate-1">No words practiced yet... Start learning to fill this page!</p>
       }
 
-      { !isClearing && stats.length > 0 && 
+      { !isClearing && sortedStats.length > 0 && 
       <>
         {/* Hand-drawn headers */}
         <div className="mb-4 grid grid-cols-3 gap-4">
@@ -225,7 +224,7 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
 
         {/* Hand-drawn vocabulary entries */}
         <div className="space-y-3">
-          {stats.map((stat, index) => (
+          {sortedStats.map((stat, index) => (
             <div 
               key={stat.lemma} 
               className={`grid grid-cols-3 gap-4 py-2 transform ${index % 2 === 0 ? 'rotate-0' : '-rotate-0'} hover:rotate-0 transition-transform`}

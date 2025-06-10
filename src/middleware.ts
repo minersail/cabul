@@ -7,10 +7,11 @@ import {
   createRateLimitResponse,
   createRateLimitHeaders
 } from '@/lib/rateLimit'
+import { User } from '@supabase/supabase-js'
 
 async function handleApiAuthentication(
   request: NextRequest, 
-  user: any
+  user: User | null
 ): Promise<NextResponse | null> {
   // Skip server actions (they have the next-action header)
   if (request.headers.get('next-action')) {
@@ -43,7 +44,7 @@ async function handleApiAuthentication(
 
 async function handleApiRateLimit(
   request: NextRequest,
-  user: any,
+  user: User | null,
   response: NextResponse
 ): Promise<Response | null> {
   const rateLimitType = getRateLimitTypeForEndpoint(request.nextUrl.pathname)
@@ -84,7 +85,7 @@ export async function middleware(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            cookiesToSet.forEach(({ name, value }) =>
               request.cookies.set(name, value)
             )
             supabaseResponse = NextResponse.next({

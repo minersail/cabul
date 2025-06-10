@@ -23,15 +23,6 @@ export default function VocabCanvas({
 }: VocabCanvasProps) {
   if (!tokenizationInfo || !tokenizationInfo.tokens || !Array.isArray(tokenizationInfo.tokens)) {
     console.error("VocabCanvas rendered with invalid tokenizationInfo.tokens", tokenizationInfo);
-    return (
-      <div className="flex-grow relative">
-        <div className="p-6 min-h-96 flex items-center justify-center" style={{ backgroundColor: '#f8f7f2', color: '#2f2f2f' }}>
-          <div className="text-center text-red-500" style={{ fontFamily: 'var(--font-crimson-text)' }}>
-            Error: Invalid token data received.
-          </div>
-        </div>
-      </div>
-    );
   }
 
   const [state, dispatch] = useReducer(canvasReducer, initialState);
@@ -69,7 +60,7 @@ export default function VocabCanvas({
     );
   }
 
-  let renderedTextElements = []; 
+  const renderedTextElements = []; 
   for (let i = 0; i < allTokens.length; i++) {
     const spacyToken = allTokens[i];
     const isCurrentFocusLearnableWord = 

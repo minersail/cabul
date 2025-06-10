@@ -32,7 +32,7 @@ export default function AdminGuard({ children, fallback }: AdminGuardProps) {
           setIsAdmin(false)
           setError('Failed to load user profile')
         }
-      } catch (err) {
+      } catch {
         setIsAdmin(false)
         setError('Error checking admin status')
       } finally {

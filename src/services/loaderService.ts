@@ -35,7 +35,7 @@ export async function tokenizeText(text: string): Promise<TokenizationResponse> 
       throw new Error(data.error || 'Failed to tokenize content (server response not OK)');
     }
 
-    let tokenResult = data[0];
+    const tokenResult = data[0];
     
     // Even if response.ok, the Hugging Face API might return an error structure
     // or a success structure that doesn't contain tokens (e.g. model loading message)
@@ -73,7 +73,7 @@ export async function getRedditPosts(): Promise<RedditPost[] | ErrorMessage> {
     }
 
     // Transform the posts to include the type discriminator
-    return data.posts.map((post: any) => ({
+    return data.posts.map((post: RedditPost) => ({
       type: 'reddit' as const,
       title: post.title,
       content: post.content,
@@ -177,6 +177,7 @@ export async function getRandomScriptSlugScene(pdfUrl?: string): Promise<ScriptS
 }
 
 // Type guard to check if a response is an error message
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isErrorMessage(response: any): response is ErrorMessage {
   return response && typeof response === 'object' && 'error' in response && typeof response.error === 'string';
 } 

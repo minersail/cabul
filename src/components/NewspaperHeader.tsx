@@ -10,7 +10,7 @@ export default function NewspaperHeader() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const { user, loading, signInWithEmail, signUpWithEmail, convertAnonymousUser, signOut } = useAuth();
+  const { user, signInWithEmail, signUpWithEmail, convertAnonymousUser, signOut } = useAuth();
 
   useEffect(() => {
     // Set the current date on client side to avoid hydration mismatch
@@ -45,9 +45,8 @@ export default function NewspaperHeader() {
       setShowLoginForm(false);
       setEmail('');
       setPassword('');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Auth error:', error);
-      alert(`Error: ${error.message || 'An error occurred'}`);
     }
   };
 
@@ -64,13 +63,6 @@ export default function NewspaperHeader() {
   };
 
   const renderAuthSection = () => {
-    if (loading) {
-      return (
-        <span className="text-xs opacity-50" style={{ fontFamily: 'var(--font-crimson-text)' }}>
-          ...
-        </span>
-      );
-    }
 
     if (user && !user.is_anonymous) {
       return (

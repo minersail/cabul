@@ -164,7 +164,7 @@ export default function ArticleLoader() {
       };
       fetchArticles();
     }
-  }, [userConfig.articleSource, currentArticle]);
+  }, [userConfig.articleSource, currentArticle, dispatch]);
 
   // Tokenization effect
   useEffect(() => {

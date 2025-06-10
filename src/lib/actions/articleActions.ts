@@ -16,7 +16,7 @@ export interface ArticleData {
   url: string;
   author: string | null;
   createdAt: Date;
-  metadata: any;
+  metadata: unknown;
 }
 
 export interface CreateArticleData {
@@ -25,7 +25,7 @@ export interface CreateArticleData {
   source: string;
   url: string;
   author?: string;
-  metadata?: any;
+  metadata?: unknown;
 }
 
 /**
@@ -69,7 +69,7 @@ export async function addArticle(
         source: articleData.source,
         url: articleData.url,
         author: articleData.author || null,
-        metadata: articleData.metadata || null
+        metadata: articleData.metadata || undefined
       }
     });
 

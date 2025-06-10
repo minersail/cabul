@@ -3,7 +3,7 @@ declare module 'react-d3-tree' {
 
   interface TreeNodeDatum {
     name: string;
-    attributes?: Record<string, any>;
+    attributes?: Record<string, unknown>;
     children?: TreeNodeDatum[];
   }
 

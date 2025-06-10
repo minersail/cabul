@@ -1,4 +1,3 @@
-import VocabStats from "@/components/VocabStats";
 import ArticleLoader from "@/components/ArticleLoader";
 import NewspaperHeader from "@/components/NewspaperHeader";
 

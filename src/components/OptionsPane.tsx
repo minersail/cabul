@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Walter_Turncoat } from 'next/font/google';
-import { ArticleSource } from '@/reducers/articleLoaderReducer';
 
 const walterTurncoat = Walter_Turncoat({
   weight: '400',

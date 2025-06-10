@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Basic HTML parsing to extract article content
-      const articleData = parseLeMondeArticle(html, url);
+      const articleData = parseLeMondeArticle(html);
 
       return NextResponse.json({
         success: true,
@@ -286,7 +286,7 @@ async function handleGetRandomArticle() {
       );
     }
 
-    const articleData = parseLeMondeArticle(articleHtml, randomArticle.url);
+    const articleData = parseLeMondeArticle(articleHtml);
 
     return NextResponse.json({
       success: true,
@@ -474,7 +474,7 @@ function decodeHtmlEntities(text: string): string {
   return text;
 }
 
-function parseLeMondeArticle(html: string, url: string) {
+function parseLeMondeArticle(html: string) {
   try {
     // Extract title from the specific Le Monde title class
     let title = '';
@@ -539,7 +539,7 @@ function parseLeMondeArticle(html: string, url: string) {
         }
       }
       
-      let contentParts: string[] = [];
+      const contentParts: string[] = [];
       
       if (paragraphMatches.length > 0) {
         paragraphMatches.forEach(paragraph => {

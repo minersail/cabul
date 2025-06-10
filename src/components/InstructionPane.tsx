@@ -1,6 +1,5 @@
 'use client';
 
-import { Suspense } from 'react';
 import { Walter_Turncoat } from 'next/font/google';
 import { KEY_MAPPINGS } from '@/hooks/useInput';
 

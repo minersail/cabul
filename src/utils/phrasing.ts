@@ -1,21 +1,8 @@
-import { SpaCyToken, SpaCySentence } from '../types/tokenization';
+import { SpaCyToken } from '../types/tokenization';
 
 export interface TargetTokenIdentifier {
   start_char: number; // Corresponds to SpaCyToken.start
   end_char: number;   // Corresponds to SpaCyToken.end
-}
-
-/**
- * Given a SpaCy document (or an array of sentences) and character offsets for a target token,
- * finds the sentence containing the target token and the target token object itself.
- * Assumes sentences have a 'tokens' property.
- */
-export function getSentenceAndTargetToken(
-  sentencesData: SpaCySentence[],
-  allTokens: SpaCyToken[],
-  targetIdentifier: TargetTokenIdentifier
-) {
-  // TODO: Implement this
 }
 
 // --- Internal Helper Functions using token.children and token.head ---

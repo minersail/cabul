@@ -34,7 +34,6 @@ interface UseKeyPressConfig {
 
 export function useLearningModeKeyPress({
   currentWordIndex,
-  furthestWordIndex,
   tokenizationInfo,
   dispatch,
   setIsLearningMode
@@ -129,7 +128,7 @@ export function useLearningModeKeyPress({
       default:
         return false;
     }
-  }, [currentWordIndex, furthestWordIndex, tokenizationInfo, dispatch, setIsLearningMode]);
+  }, [currentWordIndex, tokenizationInfo, dispatch, setIsLearningMode]);
 }
 
 export function useNavigationModeKeyPress({

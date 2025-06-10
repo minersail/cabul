@@ -1,6 +1,5 @@
-import { MAX_LEMONDE_ARTICLES } from "@/components/ArticleLoader";
-import { RedditPost, LeMondeArticle, ScriptSlugScene } from "@/types/articles";
-import { TokenizationResponse, ErrorMessage } from "@/services/loaderService";
+import { RedditPost, LeMondeArticle, ScriptSlugScene, Article } from "@/types/articles";
+import { TokenizationResponse } from "@/services/loaderService";
 
 export type ArticleSource = 'reddit' | 'lemonde' | 'scriptslug';
 
@@ -18,7 +17,7 @@ export interface UIState {
   saveMessage: Message;
 }
 
-export interface ArticleCache<ArticleType> {
+export interface ArticleCache<ArticleType extends Article> {
   articles: ArticleType[];
   currentIndex: number;
   hasLoadedFromDatabase: boolean;
@@ -320,7 +319,7 @@ export function articleLoaderReducer(
   }
 }
 
-function getCache(state: ArticleLoaderState, source: ArticleSource): [ArticleCache<any>, string] {
+function getCache(state: ArticleLoaderState, source: ArticleSource): [ArticleCache<Article>, string] {
   if (source === 'reddit') {
     return [state.articles.redditCache, 'redditCache'];
   } else if (source === 'lemonde') {

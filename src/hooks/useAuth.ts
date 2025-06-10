@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { createUserProfile, updateLastAccessedInternal } from '@/lib/actions/userActions'
@@ -10,11 +10,60 @@ export function useAuth() {
   // Create a single client instance for the entire hook
   const supabase = useMemo(() => createClient(), [])
 
+  const handleUserSetup = useCallback(async (authUser: User) => {
+    try {
+      // Check if profile already exists
+      const { data: existingProfile, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', authUser.id)
+        .single()
+
+      // If no profile exists, create one
+      if (!existingProfile && error?.code === 'PGRST116') {
+        // For anonymous users, use null email; for authenticated users, use their email
+        const email = authUser.is_anonymous ? null : (authUser.email || null)
+        
+        const result = await createUserProfile(authUser.id, email)
+        
+        if (result.success) {
+          // Create default user config for new profile
+          const configResult = await upsertUserConfig(authUser.id, {
+            articleSource: 'reddit',
+            autoScroll: false
+          })
+          
+          if (!configResult.success) {
+            console.error('Failed to create default user config:', configResult.error)
+          }
+        } else {
+          console.error('Failed to create profile:', result.error)
+          // Don't throw here - let the app continue, vocabulary actions will handle the missing profile gracefully
+        }
+      } else if (existingProfile) {
+        // Update lastAccessed timestamp for existing profile
+        const updateResult = await updateLastAccessedInternal(authUser.id)
+        
+        if (!updateResult.success) {
+          console.error('Failed to update last accessed:', updateResult.error)
+        }
+      } else if (error) {
+        console.error('Error checking for existing profile:', error)
+        // Don't throw - let the app continue
+      }
+      
+    } catch (error) {
+      console.error('Error setting up user:', error)
+      // Don't re-throw - let the app continue, vocabulary actions will handle missing profile gracefully
+    }
+  }, [supabase])
+
   useEffect(() => {
     // Initialize authentication - auto-sign in anonymously if no user
     const initializeAuth = async () => {
       try {
-        let { data: { user }, error } = await supabase.auth.getUser()
+        const { data, error } = await supabase.auth.getUser()
+        let user = data.user;
 
         if (error) {
           console.error('Error getting user:', error)
@@ -61,55 +110,7 @@ export function useAuth() {
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase])
-
-  const handleUserSetup = async (authUser: User) => {
-    try {
-      // Check if profile already exists
-      const { data: existingProfile, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', authUser.id)
-        .single()
-
-      // If no profile exists, create one
-      if (!existingProfile && error?.code === 'PGRST116') {
-        // For anonymous users, use null email; for authenticated users, use their email
-        const email = authUser.is_anonymous ? null : (authUser.email || null)
-        
-        const result = await createUserProfile(authUser.id, email)
-        
-        if (result.success) {
-          // Create default user config for new profile
-          const configResult = await upsertUserConfig(authUser.id, {
-            articleSource: 'reddit',
-            autoScroll: false
-          })
-          
-          if (!configResult.success) {
-            console.error('Failed to create default user config:', configResult.error)
-          }
-        } else {
-          console.error('Failed to create profile:', result.error)
-          // Don't throw here - let the app continue, vocabulary actions will handle the missing profile gracefully
-        }
-      } else if (existingProfile) {
-        // Update lastAccessed timestamp for existing profile
-        const updateResult = await updateLastAccessedInternal(authUser.id)
-        
-        if (!updateResult.success) {
-          console.error('Failed to update last accessed:', updateResult.error)
-        }
-      } else if (error) {
-        console.error('Error checking for existing profile:', error)
-        // Don't throw - let the app continue
-      }
-      
-    } catch (error) {
-      console.error('Error setting up user:', error)
-      // Don't re-throw - let the app continue, vocabulary actions will handle missing profile gracefully
-    }
-  }
+  }, [handleUserSetup, supabase])
 
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -148,7 +149,7 @@ export function useAuth() {
         .eq('id', user.id)
         
       return { error: null }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Conversion error:', error)
       return { error }
     }
