@@ -94,7 +94,6 @@ export function useUserConfig() {
   }, [user?.id])
 
   // Update a single config field
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateConfig = useCallback(async (field: keyof ClientUserConfig, value: any) => {
     const newConfig = { [field]: value }
     await saveConfig(newConfig)

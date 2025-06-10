@@ -3,7 +3,6 @@ declare module 'react-d3-tree' {
 
   interface TreeNodeDatum {
     name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     attributes?: Record<string, any>;
     children?: TreeNodeDatum[];
   }

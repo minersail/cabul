@@ -16,7 +16,7 @@ export interface ArticleData {
   url: string;
   author: string | null;
   createdAt: Date;
-  metadata: unknown;
+  metadata: any;
 }
 
 export interface CreateArticleData {
@@ -25,7 +25,7 @@ export interface CreateArticleData {
   source: string;
   url: string;
   author?: string;
-  metadata?: unknown;
+  metadata?: any;
 }
 
 /**

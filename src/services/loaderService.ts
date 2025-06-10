@@ -177,7 +177,6 @@ export async function getRandomScriptSlugScene(pdfUrl?: string): Promise<ScriptS
 }
 
 // Type guard to check if a response is an error message
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isErrorMessage(response: any): response is ErrorMessage {
   return response && typeof response === 'object' && 'error' in response && typeof response.error === 'string';
 } 

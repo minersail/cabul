@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Walter_Turncoat } from 'next/font/google';
 
 const walterTurncoat = Walter_Turncoat({

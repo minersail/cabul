@@ -15,7 +15,8 @@ const eslintConfig = [
     rules: {
       // Disable unescaped entities rule for French vocabulary app
       // We display lots of text content with apostrophes, quotes, etc.
-      "react/no-unescaped-entities": "off"
+      "react/no-unescaped-entities": "off",
+      "@typescript-eslint/no-explicit-any": "off",
     }
   }
 ];
