@@ -9,7 +9,6 @@ export async function validateAuth(profileId: string): Promise<{ success: true }
     // Get current user from Supabase
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
-    console.log("user in validateAuth", user);
     
     if (error || !user) {
       return { success: false, error: 'Authentication required' }

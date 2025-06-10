@@ -14,13 +14,11 @@ export function useAuth() {
     // Initialize authentication - auto-sign in anonymously if no user
     const initializeAuth = async () => {
       try {
-        console.log('initializing auth')
         let { data: { user }, error } = await supabase.auth.getUser()
 
         if (error) {
           console.error('Error getting user:', error)
         }
-        console.log('user in useAuth', user)
 
         if (!user) {
           // No user at all - sign in anonymously
@@ -33,7 +31,6 @@ export function useAuth() {
 
           user = newUser;
         }
-        console.log('user in useAuth', user)
         
         await handleUserSetup(user)
         setUser(user)

@@ -9,7 +9,7 @@ const HF_AUTH_TOKEN = process.env.HUGGINGFACE_API_KEY || "YOUR_HF_API_KEY_PLACEH
 
 export async function POST(request: NextRequest) {
   if (!HF_AUTH_TOKEN || HF_AUTH_TOKEN === "YOUR_HF_API_KEY_PLACEHOLDER") {
-    console.error('Hugging Face API key is not configured. Please set HUGGINGFACE_API_KEY environment variable or update the placeholder in the code.');
+    console.error('Hugging Face API key is not configured properly.');
     return NextResponse.json(
       { error: 'Authentication error: Hugging Face API key not configured on the server.' },
       { status: 500 }

@@ -1,6 +1,6 @@
 # Vocab Herald - French Vocabulary Learning App
 
-## Current Implementation Status (as of 2025-06-01)
+## Current Implementation Status (as of 2025-06-10)
 
 ### ✅ COMPLETED
 - **Article Loading System**: Reddit + Le Monde article fetching with caching
@@ -18,6 +18,8 @@
 - **Local Development Environment**: Supabase local stack + Docker
 - **Anonymous Authentication**: Auto-sign in with seamless conversion to permanent accounts
 - **Movie Script Learning**: ScriptSlug PDF parsing with OpenAI-powered French translation for cinematic vocabulary learning
+- **Security Architecture**: Server action authorization wrappers, admin role system, protected test pages
+- **Production Security**: Security headers, API authentication, tiered rate limiting with Redis
 
 ### 🚧 IN PROGRESS (Higher Priority)
 - **Hosting**: Local setup complete, production deployment pending
@@ -48,6 +50,13 @@ ArticleLoader → TokenizationAPI → VocabCanvas → VocabToken → KeyboardNav
 - `VocabCanvasReducer`: Current word position, learning state, API responses
 - Database Services: Persistent vocabulary and progress tracking (anonymous + authenticated users)
 
+### Security Architecture
+**Multi-layer protection system:**
+- **Middleware**: API authentication + tiered rate limiting (very-expensive: 3/min, expensive: 15/min, resource-intensive: 10/min, external-api: 30/min, general: 60/min, admin: 20/min)
+- **Headers**: Security headers via next.config.ts (frame options, content type, referrer policy, HSTS)
+- **Authorization**: Server action wrappers with admin role enforcement
+- **Rate Limiting**: Upstash Redis-backed with user/IP identification
+
 ### Article Source System
 **Three Learning Sources:**
 - **Reddit**: French community posts from r/france (social/informal French)
@@ -72,7 +81,12 @@ ArticleLoader (main orchestrator)
 src/lib/actions/
 ├── vocabularyActions.ts (vocabulary CRUD operations)
 ├── articleActions.ts (article CRUD operations)
-└── userActions.ts (user profile operations)
+├── userActions.ts (user profile operations)
+└── userConfigActions.ts (user configuration operations)
+
+src/lib/
+├── validateAuth.ts (server action authorization utility functions)
+└── rateLimit.ts (API rate limiting with Upstash Redis)
 ```
 
 ### External Integrations
@@ -82,11 +96,12 @@ src/lib/actions/
 - **Reddit API**: French subreddit scraping
 - **Le Monde**: Article scraping
 - **Supabase**: Authentication and database hosting
+- **Upstash Redis**: Rate limiting cache
 
 ## Database Schema (Supabase + Prisma)
 
 **Core Tables:**
-- `profiles`: User profiles (references Supabase auth.users via UUID, nullable email for anonymous)
+- `profiles`: User profiles (references Supabase auth.users via UUID, nullable email for anonymous, isAdmin for role-based access, lastAccessed for activity tracking)
 - `lexicon`: User's vocabulary words with proficiency tracking
 - `mistakes`: Error tracking for spaced repetition
 - `sessions`: Learning session analytics
@@ -130,6 +145,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=[local_key]
 HUGGINGFACE_API_KEY=[required]
 DEEPL_API_KEY=[required]
 OPENAI_API_KEY=[required_for_movie_translation]
+UPSTASH_REDIS_REST_URL=[required_for_rate_limiting]
+UPSTASH_REDIS_REST_TOKEN=[required_for_rate_limiting]
 ```
 
 ## Tech Stack
@@ -137,6 +154,7 @@ OPENAI_API_KEY=[required_for_movie_translation]
 - **Backend**: Next.js API routes
 - **Database**: PostgreSQL (Supabase), Prisma ORM
 - **Authentication**: Supabase Auth with Anonymous Users
+- **Cache**: Upstash Redis (rate limiting)
 - **APIs**: Hugging Face (SpaCy), DeepL, Wiktionary
 - **Styling**: Newspaper-inspired design with Crimson Text + Playfair Display fonts
 - **Dev Tools**: Docker (Supabase local), Prisma Studio
@@ -175,3 +193,5 @@ npx prisma generate  # Regenerate Prisma client
 - 2025-06-02: Implemented article database operations (addArticle, getArticlesBySource)
 - 2025-06-03: Added ScriptSlug movie script parsing and OpenAI-powered French translation for cinematic vocabulary learning
 - 2025-06-03: Integrated ScriptSlug as native article source in main learning interface with full caching, database storage, and UI support
+- 2025-06-04: Implemented comprehensive security architecture with server action authorization wrappers, admin role system, and protected test pages
+- 2025-06-10: Implemented production security suite with comprehensive middleware (API auth + rate limiting), security headers, and Upstash Redis integration
