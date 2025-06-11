@@ -16,10 +16,19 @@
 - **Vocabulary Service**: Database service layer for user vocabulary management
 - **Article Service**: Database operations for article CRUD (add, fetch by source, delete)
 - **Local Development Environment**: Supabase local stack + Docker
-- **Anonymous Authentication**: Auto-sign in with seamless conversion to permanent accounts
+- **Anonymous Authentication**: Auto-sign in with Google OAuth integration for account linking
 - **Movie Script Learning**: ScriptSlug PDF parsing with OpenAI-powered French translation for cinematic vocabulary learning
 - **Security Architecture**: Server action authorization wrappers, admin role system, protected test pages
 - **Production Security**: Security headers, API authentication, tiered rate limiting with Redis
+- **Production Database**: Herald Supabase project deployed with complete schema
+- **Row Level Security**: Comprehensive RLS policies ensuring users only access their own data
+- **MCP Integration**: Tested Supabase MCP server for database operations and schema management
+
+### ✅ HOSTING READY
+- Production environment variables configured for local/production separation
+- Database schema deployed to production Supabase instance
+- RLS policies implemented for data security
+- Ready for Vercel deployment with external API integrations (OpenAI, Upstash, HuggingFace, DeepL)
 
 ### 🚧 IN PROGRESS (Higher Priority)
 - **Hosting**: Local setup complete, production deployment pending
@@ -52,6 +61,8 @@ ArticleLoader → TokenizationAPI → VocabCanvas → VocabToken → KeyboardNav
 
 ### Security Architecture
 **Multi-layer protection system:**
+- **Database Security**: Row Level Security (RLS) policies ensuring users can only access their own profiles, vocabulary, mistakes, and sessions
+- **Authentication**: Supabase auth with Google OAuth, profile-based access control and admin roles
 - **Middleware**: API authentication + tiered rate limiting (very-expensive: 3/min, expensive: 15/min, resource-intensive: 10/min, external-api: 30/min, general: 60/min, admin: 20/min)
 - **Headers**: Security headers via next.config.ts (frame options, content type, referrer policy, HSTS)
 - **Authorization**: Server action wrappers with admin role enforcement
@@ -120,7 +131,7 @@ src/lib/
 5. **Navigation Mode**: User moves through words with E (know) / W (help)
 6. **Learning Mode**: Triggered by 'help', provides translations/definitions
 7. **Progress Tracking**: Database updates word stats (anonymous or authenticated)
-8. **Account Conversion**: Anonymous users can easily convert to permanent accounts
+8. **Account Linking**: Anonymous users can easily link with Google accounts for persistence
 
 ## Keyboard Navigation (Current Implementation)
 
@@ -136,18 +147,6 @@ src/lib/
 - `D`: Phrase detection
 - `E`: Next word (exit learning mode)
 - `Q`: Previous word (exit learning mode)
-
-## Environment Variables (Local Development)
-```bash
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=[local_key]
-HUGGINGFACE_API_KEY=[required]
-DEEPL_API_KEY=[required]
-OPENAI_API_KEY=[required_for_movie_translation]
-UPSTASH_REDIS_REST_URL=[required_for_rate_limiting]
-UPSTASH_REDIS_REST_TOKEN=[required_for_rate_limiting]
-```
 
 ## Tech Stack
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
@@ -182,16 +181,13 @@ npx prisma generate  # Regenerate Prisma client
 - **Visual States**: Current word, learned words, unlearned words, flash feedback
 
 ## Recent Changes
-- 2025-06-01: Added Supabase + Prisma local development setup
-- 2025-06-01: Implemented Profile-based schema compatible with Supabase auth (UUID-based)
-- 2025-06-01: Created vocabulary service layer for database operations
-- 2025-06-01: Configured authentication middleware and Prisma client
-- 2025-06-01: Added .cursorrules for AI assistant context management
-- 2025-06-01: Added docs/ folder with architecture documentation
-- 2025-06-01: Implemented anonymous authentication with seamless account conversion
-- 2025-06-01: Centralized auth logic in useAuth hook
-- 2025-06-02: Implemented article database operations (addArticle, getArticlesBySource)
-- 2025-06-03: Added ScriptSlug movie script parsing and OpenAI-powered French translation for cinematic vocabulary learning
-- 2025-06-03: Integrated ScriptSlug as native article source in main learning interface with full caching, database storage, and UI support
-- 2025-06-04: Implemented comprehensive security architecture with server action authorization wrappers, admin role system, and protected test pages
+- 2025-06-10: **GOOGLE OAUTH INTEGRATION**: Replaced email/password authentication with Google OAuth for streamlined user experience
+- 2025-06-10: Removed complex email authentication forms and simplified auth UI to single Google sign-in button
+- 2025-06-10: Updated anonymous user workflow to seamlessly link with Google accounts via OAuth
+- 2025-06-10: **HOSTING MILESTONE**: Deployed complete database schema to production Supabase instance (Herald project)
+- 2025-06-10: Implemented comprehensive Row Level Security policies ensuring user data isolation
+- 2025-06-10: Tested MCP Supabase integration for database operations and schema management
+- 2025-06-10: Configured production-ready environment variable structure for Vercel deployment
+- 2025-06-10: Disabled react/no-unescaped-entities ESLint rule for better French text content support
+- 2025-06-10: Fixed infinite loop in VocabStats component by replacing useEffect with useMemo for sorting
 - 2025-06-10: Implemented production security suite with comprehensive middleware (API auth + rate limiting), security headers, and Upstash Redis integration

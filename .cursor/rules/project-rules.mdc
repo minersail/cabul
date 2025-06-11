@@ -38,6 +38,8 @@ Optimize the README for precise context for an AI model, not for a human reader.
 If you feel it adequate, you may add additional documentation in the docs/ folder to describe
 behavior you deem complex and important, so that you may go in depth without crowding the README.
 
+When adding dates to the README, please ensure they are accurate.
+
 ## Development Patterns
 - Use reducer patterns for complex state management
 - Use Prisma for all database operations, implemented as server actions

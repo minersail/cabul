@@ -10,7 +10,7 @@ export function useAuth() {
   // Create a single client instance for the entire hook
   const supabase = useMemo(() => createClient(), [])
 
-  const handleUserSetup = useCallback(async (authUser: User) => {
+  const handleProfileSetup = useCallback(async (authUser: User) => {
     try {
       // Check if profile already exists
       const { data: existingProfile, error } = await supabase
@@ -81,8 +81,9 @@ export function useAuth() {
           user = newUser;
         }
         
-        await handleUserSetup(user)
+        await handleProfileSetup(user)
         setUser(user)
+        console.log("Logged in as " + user.id)
         
       } catch (error) {
         console.error('Auth initialization failed:', error)
@@ -91,83 +92,61 @@ export function useAuth() {
     }
 
     initializeAuth()
+  }, [handleProfileSetup, supabase])
 
-    // Listen for auth changes - avoid async callback to prevent deadlocks
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        const newUser = session?.user ?? null
-        
-        if (event === 'SIGNED_IN' && newUser) {
-          // Use setTimeout to defer async operations until after callback finishes
-          // This prevents deadlocks as recommended by Supabase documentation
-          setTimeout(async () => {
-            await handleUserSetup(newUser)
-          }, 0)
-        }
-        
-        setUser(newUser)
+  const logInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
       }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [handleUserSetup, supabase])
-
-  const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
     })
     return { error }
   }
 
-  const signUpWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password
-    })
-    return { error }
-  }
-
-  const convertAnonymousUser = async (email: string, password: string) => {
+  const linkWithGoogle = async () => {
     if (!user?.is_anonymous) {
       throw new Error('User is not anonymous')
     }
 
     try {
-      // Convert anonymous user to permanent user
-      const { error } = await supabase.auth.updateUser({
-        email,
-        password
+      // Link anonymous user with Google
+      const { error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
       })
       
-      if (error) throw error
-      
-      // Update profile with email
-      await supabase
-        .from('profiles')
-        .update({ email })
-        .eq('id', user.id)
-        
-      return { error: null }
+      return { error }
     } catch (error) {
-      console.error('Conversion error:', error)
+      console.error('Link with Google error:', error)
       return { error }
     }
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error('Logout error:', error)
+    const { error: signOutError } = await supabase.auth.signOut()
+    if (signOutError) {
+      console.error('Logout error:', signOutError)
+      // Return early if sign out fails
+      return { error: signOutError }
     }
-    return { error }
+
+    // Immediately sign in anonymously to ensure a session always exists
+    const { error: signInError } = await supabase.auth.signInAnonymously()
+    if (signInError) {
+      console.error('Anonymous sign-in after logout failed:', signInError)
+      return { error: signInError }
+    }
+    
+    return { error: null }
   }
 
   return { 
     user, 
-    signInWithEmail,
-    signUpWithEmail,
-    convertAnonymousUser,
+    logInWithGoogle,
+    linkWithGoogle,
     signOut
   }
 } 

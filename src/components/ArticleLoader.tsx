@@ -77,7 +77,6 @@ export default function ArticleLoader() {
   // Load database articles on component mount and source change
   useEffect(() => {
     const loadDatabaseArticles = async () => {
-      console.log(userConfig.articleSource);
       const currentCache = getCurrentCache();
       
       // Only load from database if we haven't already

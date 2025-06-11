@@ -5,12 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function NewspaperHeader() {
   const [currentDate, setCurrentDate] = useState<string>('');
-  const [showLoginForm, setShowLoginForm] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
-  const { user, signInWithEmail, signUpWithEmail, convertAnonymousUser, signOut } = useAuth();
+  const { user, logInWithGoogle, linkWithGoogle, signOut } = useAuth();
 
   useEffect(() => {
     // Set the current date on client side to avoid hydration mismatch
@@ -22,142 +18,61 @@ export default function NewspaperHeader() {
     }));
   }, []);
 
-  const handleEmailPasswordAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSave = async () => {
     try {
-      let result;
-      
-      if (user?.is_anonymous) {
-        // Convert anonymous user to permanent user
-        result = await convertAnonymousUser(email, password);
-      } else {
-        // Regular sign in/up for non-anonymous users
-        if (isLogin) {
-          result = await signInWithEmail(email, password);
-        } else {
-          result = await signUpWithEmail(email, password);
-        }
-      }
-      
+      const result = await linkWithGoogle();
       if (result.error) throw result.error;
-      
-      setShowLoginForm(false);
-      setEmail('');
-      setPassword('');
     } catch (error) {
-      console.error('Auth error:', error);
+      console.error('Auth error (save):', error);
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      const result = await logInWithGoogle();
+      if (result.error) throw result.error;
+    } catch (error) {
+      console.error('Auth error (login):', error);
     }
   };
 
   const handleLogout = async () => {
     await signOut();
-    // After logout, will automatically sign in anonymously via the auth state change listener
-  };
-
-  const getAuthButtonText = () => {
-    if (user?.is_anonymous) {
-      return "Create Account";
-    }
-    return "Member Login";
   };
 
   const renderAuthSection = () => {
-
     if (user && !user.is_anonymous) {
       return (
-        <button
-          onClick={handleLogout}
-          className="text-xs hover:opacity-70 transition-opacity"
-          style={{ fontFamily: 'var(--font-crimson-text)' }}
-        >
-          Sign Out
-        </button>
+        <div className="flex items-center space-x-4">
+          <span className="text-sm font-medium">{user.email}</span>
+          <button
+            onClick={handleLogout}
+            className="text-xs hover:opacity-70 transition-opacity"
+            style={{ fontFamily: 'var(--font-crimson-text)' }}
+          >
+            Sign Out
+          </button>
+        </div>
       );
     }
 
     return (
-      <div className="relative">
+      <div className="flex items-center space-x-4">
         <button
-          onClick={() => setShowLoginForm(!showLoginForm)}
+          onClick={handleSave}
           className="text-xs hover:opacity-70 transition-opacity"
           style={{ fontFamily: 'var(--font-crimson-text)' }}
         >
-          {getAuthButtonText()}
+          Save Progress
         </button>
-        
-        {showLoginForm && (
-          <div className="absolute right-0 top-6 bg-white border border-gray-300 rounded shadow-lg p-4 z-10 min-w-[280px]">
-            <form onSubmit={handleEmailPasswordAuth}>
-              <div className="mb-3">
-                <h3 className="font-medium text-sm mb-2" style={{ fontFamily: 'var(--font-crimson-text)' }}>
-                  {user?.is_anonymous ? 'Save Your Progress' : (isLogin ? 'Sign In' : 'Create Account')}
-                </h3>
-                
-                {!user?.is_anonymous && (
-                  <div className="flex text-xs mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsLogin(true)}
-                      className={`mr-2 px-2 py-1 rounded ${isLogin ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
-                    >
-                      Sign In
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsLogin(false)}
-                      className={`px-2 py-1 rounded ${!isLogin ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
-                    >
-                      Sign Up
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              <div className="mb-3">
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full p-2 text-xs border border-gray-300 rounded"
-                  style={{ fontFamily: 'var(--font-crimson-text)' }}
-                />
-              </div>
-              
-              <div className="mb-3">
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full p-2 text-xs border border-gray-300 rounded"
-                  style={{ fontFamily: 'var(--font-crimson-text)' }}
-                />
-              </div>
-              
-              <div className="flex justify-between">
-                <button
-                  type="button"
-                  onClick={() => setShowLoginForm(false)}
-                  className="text-xs px-3 py-1 text-gray-600 hover:text-gray-800"
-                  style={{ fontFamily: 'var(--font-crimson-text)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="text-xs px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-700"
-                  style={{ fontFamily: 'var(--font-crimson-text)' }}
-                >
-                  {user?.is_anonymous ? 'Save Progress' : (isLogin ? 'Sign In' : 'Sign Up')}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+        <span className="text-gray-400">|</span>
+        <button
+          onClick={handleLogin}
+          className="text-xs hover:opacity-70 transition-opacity"
+          style={{ fontFamily: 'var(--font-crimson-text)' }}
+        >
+          Log In
+        </button>
       </div>
     );
   };

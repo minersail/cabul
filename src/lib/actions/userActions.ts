@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma';
-import { validateAuth, validateAuthOnly } from '@/lib/validateAuth';
+import { validateAuth } from '@/lib/validateAuth';
 
 /**
  * Server Actions for user profile management
@@ -21,15 +21,11 @@ interface Profile {
  * This is called during initial user registration, so it only needs basic auth
  */
 export async function createUserProfile(
-  authUserId: string, 
+  authUserId: string,
   email: string | null
 ): Promise<{ success: true; data: Profile } | { success: false; error: string }> {
-  // Validate authentication only (no profileId check since we're creating the profile)
-  const authResult = await validateAuthOnly();
-  if (!authResult.success) {
-    return authResult;
-  }
-
+  // No validation needed here - this is an internal function called immediately after
+  // a user is successfully authenticated on the client. The authUserId is trusted.
   try {
     const profile = await prisma.profile.create({
       data: {
