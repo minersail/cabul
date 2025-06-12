@@ -19,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [initialAuthCompleted, setInitialAuthCompleted] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         await handleProfileSetup(supabase, currentUser)
         setUser(currentUser)
+        setInitialAuthCompleted(true)
         console.log('Logged in as ', currentUser?.id)
       } catch (error) {
         console.error('Auth initialization failed:', error)
@@ -56,8 +58,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Set up auth state listener to handle OAuth callbacks and other auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id)
+      
+      // Handle different auth state change events
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Only process OAuth sign-ins after initial auth is completed
+        // This prevents processing the initial anonymous sign-in
+        if (initialAuthCompleted && !session.user.is_anonymous) {
+          console.log('OAuth sign-in detected, updating user')
+          await handleProfileSetup(supabase, session.user)
+          setUser(session.user)
+        }
+      } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out, will re-initialize with anonymous user')
+        // Don't immediately sign in anonymously here, let the initialization handle it
+        setUser(null)
+        setInitialAuthCompleted(false)
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('Token refreshed, updating user if changed')
+        setUser(session.user)
+      }
+    })
+
+    // Initialize auth
     initializeAuth()
-  }, [supabase])
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase, initialAuthCompleted])
 
   const logInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -94,15 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', signOutError)
       return { error: signOutError }
     }
-
-    const { data, error: signInError } = await supabase.auth.signInAnonymously()
-    if (signInError || !data.user) {
-      console.error('Anonymous sign-in after logout failed:', signInError)
-      return { error: signInError }
-    }
-    
-    await handleProfileSetup(supabase, data.user)
-    setUser(data.user)
     
     return { error: null }
   }

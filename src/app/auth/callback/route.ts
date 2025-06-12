@@ -7,8 +7,9 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code)
+    console.log('Server logged in as', data?.user?.id)
+
     if (error) {
       console.error('OAuth callback error:', error)
       // Redirect to error page or home with error

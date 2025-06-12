@@ -1,6 +1,7 @@
 'use client'
 import AdminGuard from '@/components/AdminGuard'
 import AdminNav from '@/components/AdminNav'
+import { AuthProvider } from '@/components/providers/AuthProvider'
 
 export default function AdminLayout({
   children,
@@ -8,9 +9,11 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   return (
-    <AdminGuard>
-      <AdminNav />
-      {children}
-    </AdminGuard>
+    <AuthProvider>
+      <AdminGuard>
+        <AdminNav />
+        {children}
+      </AdminGuard>
+    </AuthProvider>
   )
 } 
