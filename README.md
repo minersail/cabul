@@ -180,7 +180,9 @@ npx prisma generate  # Regenerate Prisma client
 - **Navigation**: Learnable words only (filters out punctuation, spaces)
 - **Visual States**: Current word, learned words, unlearned words, flash feedback
 
-## Recent Changes
+## Recent Changes  
+- 2025-06-10: **PERFORMANCE OPTIMIZATION**: Implemented optimistic UI updates for E/W key presses - immediate visual feedback with background database sync
+- 2025-06-10: **DATABASE OPTIMIZATION**: Removed redundant profile existence checks in vocabulary actions, reducing database operations per keystroke
 - 2025-06-10: **GOOGLE OAUTH INTEGRATION**: Replaced email/password authentication with Google OAuth for streamlined user experience
 - 2025-06-10: Removed complex email authentication forms and simplified auth UI to single Google sign-in button
 - 2025-06-10: Updated anonymous user workflow to seamlessly link with Google accounts via OAuth

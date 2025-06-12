@@ -30,16 +30,6 @@ export async function addWordToVocabulary(
   }
 
   try {
-    // First ensure the profile exists (foreign key constraint requirement)
-    const profileExists = await prisma.profile.findUnique({
-      where: { id: profileId },
-      select: { id: true }
-    });
-
-    if (!profileExists) {
-      return { success: false, error: 'User profile not found. Please refresh the page and try again.' };
-    }
-
     // Ensure the lemma exists in the lemmas table
     await prisma.lemma.upsert({
       where: { lemma },

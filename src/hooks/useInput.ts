@@ -148,14 +148,22 @@ export function useNavigationModeKeyPress({
 
     switch (event.code) {
       case KEY_MAPPINGS.NAVIGATION_MODE.ADVANCE.key: {
+        // Optimistic UI update - immediate visual feedback
         if (currentWordIndex >= furthestWordIndex) {
-          await updateWordStats(currentWordText, true);
           dispatch({ type: 'SET_FLASH_STATE', payload: 'green' });
+
+          // Background database update - non-blocking
+          updateWordStats(currentWordText, true).catch(error => {
+            console.error('Failed to update word stats:', error);
+            // Could add user notification here if needed
+          });
         }
         
+        // Immediate advance with minimal delay for flash effect
         setTimeout(() => {
           dispatch({ type: 'ADVANCE', payload: { wordCount: learnableWords.length } });
         }, currentWordIndex >= furthestWordIndex ? 100 : 0);
+        
         return true;
       }
 
@@ -165,12 +173,18 @@ export function useNavigationModeKeyPress({
       }
 
       case KEY_MAPPINGS.NAVIGATION_MODE.TRANSLATE_WORD.key: {
+        // Immediate UI feedback for loading state
+        dispatch({ type: 'LOAD_INFO', payload: { displayType: 'wordTranslation' } });
+        setIsLearningMode(true);
+        
+        // Background database update - non-blocking
         if (currentWordIndex >= furthestWordIndex) {
-          await updateWordStats(currentWordText, false);
+          updateWordStats(currentWordText, false).catch(error => {
+            console.error('Failed to update word stats:', error);
+          });
         }
         
-        dispatch({ type: 'LOAD_INFO', payload: { displayType: 'wordTranslation' } });
-        
+        // Translation request (this should remain async as user expects to wait for result)
         const response = await translateWord(
           getOriginalTextForToken(tokenizationInfo.text, currentLearnableToken),
           getSentenceContext(tokenizationInfo.text, tokenizationInfo.sentences || [], currentLearnableToken)
@@ -182,7 +196,6 @@ export function useNavigationModeKeyPress({
             translation: response.result
           }
         });
-        setIsLearningMode(true);
         return true;
       }
 
