@@ -4,7 +4,7 @@ import { translateText, TranslationAPI } from '@/lib/translate';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { text, mode, api = 'google', context } = body;
+    const { text, mode, api, context } = body;
 
     if (!text || typeof text !== 'string') {
       return NextResponse.json(

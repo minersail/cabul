@@ -7,6 +7,8 @@ export default function TranslatePage() {
   const [translation, setTranslation] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [provider, setProvider] = useState<'google' | 'deepl'>('google');
+  const [context, setContext] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,9 @@ export default function TranslatePage() {
         },
         body: JSON.stringify({
           text,
-          mode: 'toEnglish'
+          mode: 'toEnglish',
+          api: provider,
+          context: provider === 'deepl' && context.trim() ? context : undefined
         }),
       });
 
@@ -48,6 +52,37 @@ export default function TranslatePage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-8">French to English Translator</h1>
             
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Translation Provider Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Translation Provider
+                </label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value="google"
+                      checked={provider === 'google'}
+                      onChange={(e) => setProvider(e.target.value as 'google' | 'deepl')}
+                      className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Google Translate</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value="deepl"
+                      checked={provider === 'deepl'}
+                      onChange={(e) => setProvider(e.target.value as 'google' | 'deepl')}
+                      className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">DeepL</span>
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label htmlFor="text" className="block text-sm font-medium text-gray-700">
                   French Text
@@ -64,6 +99,29 @@ export default function TranslatePage() {
                   />
                 </div>
               </div>
+
+              {/* Context field for DeepL */}
+              {provider === 'deepl' && (
+                <div>
+                  <label htmlFor="context" className="block text-sm font-medium text-gray-700">
+                    Context (Optional)
+                    <span className="text-xs text-gray-500 ml-1">
+                      - Helps improve translation accuracy
+                    </span>
+                  </label>
+                  <div className="mt-1">
+                    <textarea
+                      id="context"
+                      name="context"
+                      rows={2}
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      value={context}
+                      onChange={(e) => setContext(e.target.value)}
+                      placeholder="Provide additional context to improve translation..."
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <button
@@ -98,10 +156,20 @@ export default function TranslatePage() {
 
             {translation && (
               <div className="mt-6">
-                <h2 className="text-lg font-medium text-gray-900">Translation</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg font-medium text-gray-900">Translation</h2>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    {provider === 'google' ? 'Google Translate' : 'DeepL'}
+                  </span>
+                </div>
                 <div className="mt-2 p-4 bg-gray-50 rounded-md">
                   <p className="text-gray-700">{translation}</p>
                 </div>
+                {provider === 'deepl' && context.trim() && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    <strong>Context used:</strong> {context}
+                  </div>
+                )}
               </div>
             )}
           </div>

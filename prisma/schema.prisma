@@ -23,10 +23,11 @@ model Profile {
   lastAccessed DateTime?
   
   // Relations
-  userConfig UserConfig?
-  lexicon    Lexicon[]
-  mistakes   Mistake[]
-  sessions   Session[]
+  userConfig   UserConfig?
+  userMetadata UserMetadata?
+  lexicon      Lexicon[]
+  mistakes     Mistake[]
+  sessions     Session[]
   
   @@map("profiles")
 }
@@ -43,6 +44,28 @@ model UserConfig {
   @@map("user_config")
 }
 
+// UserMetadata table - 1:1 with Profile for exercise tracking
+model UserMetadata {
+  profileId    String @id @db.Uuid
+  practiceIndex Int   @default(0)
+  
+  // Relations
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  @@map("user_metadata")
+}
+
+// WordFrequency table - Lexique dataset
+model WordFrequency {
+  text           String @id
+  lemma          String
+  pos_cgram      String
+  frequency      Float
+  frequency_lemma Float
+  
+  @@map("word_frequency")
+}
+
 // Lemma table
 model Lemma {
   lemma String @id
@@ -56,11 +79,12 @@ model Lemma {
 
 // Lexicon table (composite primary key: profileId + lemma)
 model Lexicon {
-  profileId String   @db.Uuid
-  lemma     String
-  seen      Int
-  correct   Int
-  firstSeen DateTime @default(now())
+  profileId     String   @db.Uuid
+  lemma         String
+  seen          Int
+  correct       Int
+  firstSeen     DateTime @default(now())
+  lastPracticed Int?     // practiceIndex when last used in exercise
   
   // Relations
   profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)

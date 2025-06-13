@@ -23,6 +23,7 @@
 - **Production Database**: Herald Supabase project deployed with complete schema
 - **Row Level Security**: Comprehensive RLS policies ensuring users only access their own data
 - **MCP Integration**: Tested Supabase MCP server for database operations and schema management
+- **Vocabulary Exercise System**: Intelligent practice exercises with spaced repetition, frequency-based word selection, and multiple exercise types (multiple choice, translation, fill-in-blank, matching)
 
 ### ✅ HOSTING READY
 - Production environment variables configured for local/production separation
@@ -113,12 +114,14 @@ src/lib/
 
 **Core Tables:**
 - `profiles`: User profiles (references Supabase auth.users via UUID, nullable email for anonymous, isAdmin for role-based access, lastAccessed for activity tracking)
-- `lexicon`: User's vocabulary words with proficiency tracking
+- `lexicon`: User's vocabulary words with proficiency tracking (now includes lastPracticed for spaced repetition)
 - `mistakes`: Error tracking for spaced repetition
 - `sessions`: Learning session analytics
 - `user_config`: Personalization settings
 - `articles`: Cached articles with tokenization
 - `lemmas`: French word forms and base lemmas
+- `user_metadata`: Practice tracking (practiceIndex for spaced repetition algorithm)
+- `word_frequency`: Lexique dataset with frequency rankings and linguistic metadata
 
 **Relationships:** Profile → (UserConfig, Lexicon, Mistakes, Sessions)
 
@@ -181,9 +184,12 @@ npx prisma generate  # Regenerate Prisma client
 - **Visual States**: Current word, learned words, unlearned words, flash feedback
 
 ## Recent Changes  
-- 2025-06-10: **PERFORMANCE OPTIMIZATION**: Implemented optimistic UI updates for E/W key presses - immediate visual feedback with background database sync
-- 2025-06-10: **DATABASE OPTIMIZATION**: Removed redundant profile existence checks in vocabulary actions, reducing database operations per keystroke
-- 2025-06-10: **GOOGLE OAUTH INTEGRATION**: Replaced email/password authentication with Google OAuth for streamlined user experience
+- 2025-06-13: **VOCABULARY EXERCISE SYSTEM**: Implemented comprehensive practice system with intelligent word selection algorithm prioritizing frequency and user performance, spaced repetition based on practice intervals, multiple exercise types (multiple choice, word translation, fill-in-blank, matching), and detailed progress tracking
+- 2025-06-13: **DATABASE SCHEMA EXPANSION**: Added UserMetadata table for practice tracking, WordFrequency table for Lexique dataset integration, and lastPracticed field to Lexicon for spaced repetition
+- 2025-06-13: **EXERCISE COMPONENTS**: Created modular React components for different exercise types with real-time feedback, progress tracking, and session completion analytics
+- 2025-06-12: **PERFORMANCE OPTIMIZATION**: Implemented optimistic UI updates for E/W key presses - immediate visual feedback with background database sync
+- 2025-06-11: **DATABASE OPTIMIZATION**: Removed redundant profile existence checks in vocabulary actions, reducing database operations per keystroke
+- 2025-06-11: **GOOGLE OAUTH INTEGRATION**: Replaced email/password authentication with Google OAuth for streamlined user experience
 - 2025-06-10: Removed complex email authentication forms and simplified auth UI to single Google sign-in button
 - 2025-06-10: Updated anonymous user workflow to seamlessly link with Google accounts via OAuth
 - 2025-06-10: **HOSTING MILESTONE**: Deployed complete database schema to production Supabase instance (Herald project)

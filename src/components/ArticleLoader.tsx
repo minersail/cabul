@@ -9,11 +9,12 @@ import CollapsiblePanel from "./CollapsiblePanel";
 import { tokenizeText, getRedditPosts, getRandomLeMondeArticle, getRandomScriptSlugScene, isErrorMessage, saveCurrentArticle } from "@/services/loaderService";
 import { Article, articleDataToTypedArticle } from "@/types/articles";
 import { ArticleCache, articleLoaderReducer, ArticleSource, initialState, Message } from "@/reducers/articleLoaderReducer";
-import { addWordToVocabulary } from '@/lib/actions/vocabularyActions';
+import { addWordToVocabulary, recordMistake } from '@/lib/actions/vocabularyActions';
 import { getArticlesBySource } from '@/lib/actions/articleActions';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserConfig } from '@/hooks/useUserConfig';
 import { getSourceLabel, getExternalLinkText, getSourceBadgeStyle } from '@/utils/articleSources';
+import { getLearnableWords, getOriginalTextForToken, getSentenceContext } from '@/utils/tokenization';
 
 function getCurrentArticle(cache: ArticleCache<Article>): Article | null {
   return (cache.articles.length > 0 && cache.currentIndex < cache.articles.length) ? 
@@ -191,15 +192,44 @@ export default function ArticleLoader() {
     }
 
     try {
-      // Update database directly using Server Action
-      const result = await addWordToVocabulary(user.id, word, wasCorrect);
+      // Update vocabulary stats
+      const vocabResult = await addWordToVocabulary(user.id, word, wasCorrect);
       
-      if (!result.success) {
-        console.error('Error updating word stats:', result.error);
-      } else {
-        // Trigger vocabulary refresh by incrementing the trigger
-        setVocabularyUpdateTrigger(prev => prev + 1);
+      if (!vocabResult.success) {
+        console.error('Error updating word stats:', vocabResult.error);
+        return;
       }
+
+      // If the answer was incorrect, also record it as a mistake
+      if (!wasCorrect && state.tokenizationResult) {
+        // Find the token information for this word
+        const learnableWords = getLearnableWords(state.tokenizationResult.tokens);
+        const currentWordIndex = learnableWords.findIndex(token => 
+          getOriginalTextForToken(state.tokenizationResult!.text, token).toLowerCase() === word.toLowerCase()
+        );
+        
+        if (currentWordIndex !== -1) {
+          const currentToken = learnableWords[currentWordIndex];
+          const tokenText = getOriginalTextForToken(state.tokenizationResult.text, currentToken);
+          // Record the mistake with token details (only if we have required token info)
+          if (currentToken.lemma && currentToken.pos) {
+            const mistakeResult = await recordMistake(
+              user.id,
+              tokenText,
+              currentToken.lemma,
+              currentToken.pos,
+              getSentenceContext(state.tokenizationResult.text, state.tokenizationResult.sentences || [], currentToken)
+            );
+            
+            if (!mistakeResult.success) {
+              console.error('Error recording mistake:', mistakeResult.error);
+            }
+          }
+        }
+      }
+
+      // Trigger vocabulary refresh by incrementing the trigger
+      setVocabularyUpdateTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Error updating word stats:', error);
     }

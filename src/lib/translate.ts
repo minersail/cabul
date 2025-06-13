@@ -71,6 +71,7 @@ async function translateDeepL(text: string, context?: string): Promise<string> {
         source_lang: 'FR',
         target_lang: 'EN',
         context: context,
+        model_type: 'prefer_quality_optimized',
       }),
     });
 
@@ -95,7 +96,7 @@ async function translateDeepL(text: string, context?: string): Promise<string> {
  */
 export async function translateText(
   text: string, 
-  api: TranslationAPI = 'google',
+  api: TranslationAPI,
   context?: string
 ): Promise<string> {
   switch (api) {
