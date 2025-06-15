@@ -43,7 +43,61 @@ export async function translateWord(
   context: string
 ): Promise<TranslationResponse> {
   try {
-    return await translate({ text: word, context });
+    // Extract context by truncating sentence up to the word
+    const wordIndex = context.toLowerCase().indexOf(word.toLowerCase());
+    const truncatedContext = wordIndex !== -1 
+      ? context.substring(0, wordIndex).trim()
+      : context;
+    
+    // Make parallel translation calls
+    const [fullContextResult, truncatedContextResult] = await Promise.all([
+      translate({ text: word, context }),
+      translate({ text: word, context: truncatedContext || undefined })
+    ]);
+    
+    const fullTranslation = fullContextResult.result.trim();
+    const truncatedTranslation = truncatedContextResult.result.trim();
+    
+    // Helper function to check if a string is empty or just punctuation
+    const isEmptyOrPunctuation = (str: string): boolean => {
+      return !str || /^[^\w\s]*$/.test(str);
+    };
+    
+    // Helper function to check if translation is untranslated (same as original word)
+    const isUntranslated = (translation: string, originalWord: string): boolean => {
+      return translation.toLowerCase() === originalWord.toLowerCase();
+    };
+    
+    // Apply logic based on translation results
+    let finalResult: string;
+    
+    // 1) If translations are the same, return just one
+    if (fullTranslation.toLowerCase() === truncatedTranslation.toLowerCase()) {
+      finalResult = fullTranslation;
+    }
+    // 2) If one is empty/punctuation, return the other
+    else if (isEmptyOrPunctuation(fullTranslation) && !isEmptyOrPunctuation(truncatedTranslation)) {
+      finalResult = truncatedTranslation;
+    }
+    else if (isEmptyOrPunctuation(truncatedTranslation) && !isEmptyOrPunctuation(fullTranslation)) {
+      finalResult = fullTranslation;
+    }
+    // 3) If one is untranslated, return the other
+    else if (isUntranslated(fullTranslation, word) && !isUntranslated(truncatedTranslation, word)) {
+      finalResult = truncatedTranslation;
+    }
+    else if (isUntranslated(truncatedTranslation, word) && !isUntranslated(fullTranslation, word)) {
+      finalResult = fullTranslation;
+    }
+    // 4) If different and don't fall under above criteria, return both with slash
+    else {
+      finalResult = `${fullTranslation} / ${truncatedTranslation}`;
+    }
+    
+    return {
+      result: finalResult.toLowerCase(),
+      error: fullContextResult.error || truncatedContextResult.error
+    };
   } catch (error) {
     console.error('Word translation error:', error);
     return {

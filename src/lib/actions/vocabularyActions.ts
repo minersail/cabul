@@ -114,11 +114,11 @@ export async function getUserVocabulary(
 }
 
 /**
- * Delete all vocabulary words for a user
+ * Delete all vocabulary words, mistakes, and reset practice progress for a user
  */
 export async function deleteUserVocabulary(
   profileId: string
-): Promise<{ success: true; data: number } | { success: false; error: string }> {
+): Promise<{ success: true; data: { lexiconDeleted: number; mistakesDeleted: number; practiceReset: boolean } } | { success: false; error: string }> {
   // Validate authentication and authorization
   const authResult = await validateAuth(profileId);
   if (!authResult.success) {
@@ -126,16 +126,47 @@ export async function deleteUserVocabulary(
   }
 
   try {
-    const deleteResult = await prisma.lexicon.deleteMany({
-      where: {
-        profileId: profileId
-      }
+    // Use a transaction to ensure all operations succeed or fail together
+    const result = await prisma.$transaction(async (tx) => {
+      // Delete all lexicon entries for the user
+      const lexiconDeleteResult = await tx.lexicon.deleteMany({
+        where: {
+          profileId: profileId
+        }
+      });
+
+      // Delete all mistakes for the user
+      const mistakesDeleteResult = await tx.mistake.deleteMany({
+        where: {
+          profileId: profileId
+        }
+      });
+
+      // Reset practice index in user metadata
+      await tx.userMetadata.upsert({
+        where: {
+          profileId: profileId
+        },
+        update: {
+          practiceIndex: 0
+        },
+        create: {
+          profileId: profileId,
+          practiceIndex: 0
+        }
+      });
+
+      return {
+        lexiconDeleted: lexiconDeleteResult.count,
+        mistakesDeleted: mistakesDeleteResult.count,
+        practiceReset: true
+      };
     });
 
-    return { success: true, data: deleteResult.count };
+    return { success: true, data: result };
   } catch (error) {
     console.error('Error deleting user vocabulary:', error);
-    return { success: false, error: 'Failed to delete vocabulary' };
+    return { success: false, error: 'Failed to delete vocabulary and reset progress' };
   }
 }
 
@@ -147,7 +178,8 @@ export async function recordMistake(
   token: string,
   lemma: string,
   pos: string,
-  sentence?: string
+  sentence?: string,
+  translation?: string
 ): Promise<{ success: true; data: { mistakeId: number } } | { success: false; error: string }> {
   // Validate authentication and authorization
   const authResult = await validateAuth(profileId);
@@ -163,23 +195,15 @@ export async function recordMistake(
       create: { lemma }
     });
 
-    // Ensure the token exists in the tokens table
-    await prisma.token.upsert({
-      where: { text: token },
-      update: {},
-      create: { 
-        text: token,
-        lemma: lemma,
-        pos: pos
-      }
-    });
-
-    // Create the mistake record
+    // Create the mistake record with lemma and pos directly
     const mistake = await prisma.mistake.create({
       data: {
         profileId: profileId,
         token: token,
-        sentence: sentence
+        lemma: lemma,
+        pos: pos,
+        sentence: sentence,
+        translation: translation
       }
     });
 
@@ -201,6 +225,7 @@ export async function getUserMistakes(
   lemma: string;
   pos: string;
   sentence?: string;
+  translation?: string;
   createdAt: Date;
 }> } | { success: false; error: string }> {
   // Validate authentication and authorization
@@ -214,9 +239,6 @@ export async function getUserMistakes(
       where: {
         profileId: profileId
       },
-      include: {
-        tokenRef: true
-      },
       orderBy: {
         createdAt: 'desc'
       }
@@ -225,9 +247,10 @@ export async function getUserMistakes(
     const formattedMistakes = mistakes.map(mistake => ({
       mistakeId: mistake.mistakeId,
       token: mistake.token,
-      lemma: mistake.tokenRef.lemma,
-      pos: mistake.tokenRef.pos,
+      lemma: mistake.lemma,
+      pos: mistake.pos,
       sentence: mistake.sentence || undefined,
+      translation: mistake.translation || undefined,
       createdAt: mistake.createdAt
     }));
 

@@ -28,7 +28,7 @@ interface UseKeyPressConfig {
   furthestWordIndex: number;
   tokenizationInfo: SpaCyTokenizationResponse;
   dispatch: Dispatch<CanvasAction>;
-  updateWordStats: (word: string, wasCorrect: boolean) => Promise<void>;
+  updateWordStats: (word: string, wasCorrect: boolean, translation?: string) => Promise<void>;
   setIsLearningMode: (value: boolean) => void;
 }
 
@@ -177,18 +177,18 @@ export function useNavigationModeKeyPress({
         dispatch({ type: 'LOAD_INFO', payload: { displayType: 'wordTranslation' } });
         setIsLearningMode(true);
         
-        // Background database update - non-blocking
-        if (currentWordIndex >= furthestWordIndex) {
-          updateWordStats(currentWordText, false).catch(error => {
-            console.error('Failed to update word stats:', error);
-          });
-        }
-        
         // Translation request (this should remain async as user expects to wait for result)
         const response = await translateWord(
           getOriginalTextForToken(tokenizationInfo.text, currentLearnableToken),
           getSentenceContext(tokenizationInfo.text, tokenizationInfo.sentences || [], currentLearnableToken)
         );
+        
+        // Background database update - non-blocking
+        if (currentWordIndex >= furthestWordIndex) {
+          updateWordStats(currentWordText, false, response.result).catch(error => {
+            console.error('Failed to update word stats:', error);
+          });
+        }
         
         dispatch({ 
           type: 'TRANSLATE_WORD', 

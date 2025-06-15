@@ -149,6 +149,18 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
   const handleClearStats = async () => {
     if (!user) return;
     
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      'Are you sure you want to erase all vocabulary data?\n\n' +
+      'This will permanently delete:\n' +
+      '• All learned words and progress\n' +
+      '• All mistake records\n' +
+      '• Practice session history\n\n' +
+      'This action cannot be undone.'
+    );
+    
+    if (!confirmed) return;
+    
     try {
       setIsClearing(true);
       
@@ -158,7 +170,7 @@ export default function VocabStats({ refreshTrigger }: VocabStatsProps) {
       if (result.success) {
         // Update local state
         setRawStats([]);
-        console.log('Vocabulary cleared successfully');
+        console.log('Vocabulary cleared successfully:', result.data);
       } else {
         console.error('Failed to clear vocabulary:', result.error);
         alert('Failed to clear vocabulary. Please try again.');

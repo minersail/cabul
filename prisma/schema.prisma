@@ -72,7 +72,6 @@ model Lemma {
   
   // Relations
   lexicon Lexicon[]
-  tokens  Token[]
   
   @@map("lemmas")
 }
@@ -94,30 +93,21 @@ model Lexicon {
   @@map("lexicon")
 }
 
-// Token table
-model Token {
-  text  String @id
-  lemma String
-  pos   String
-  
-  // Relations
-  lemmaRef Lemma     @relation(fields: [lemma], references: [lemma], onDelete: Cascade)
-  mistakes Mistake[]
-  
-  @@map("tokens")
-}
+
 
 // Mistake table
 model Mistake {
-  mistakeId Int      @id @default(autoincrement())
-  profileId String   @db.Uuid
-  token     String
-  sentence  String?
-  createdAt DateTime @default(now())
+  mistakeId   Int      @id @default(autoincrement())
+  profileId   String   @db.Uuid
+  token       String   // Surface form text
+  lemma       String   // Base form
+  pos         String   // Part of speech
+  sentence    String?
+  translation String?  // Cached translation at mistake time
+  createdAt   DateTime @default(now())
   
   // Relations
   profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  tokenRef  Token   @relation(fields: [token], references: [text], onDelete: Cascade)
   
   @@map("mistakes")
 }

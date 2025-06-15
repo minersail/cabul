@@ -185,7 +185,7 @@ export default function ArticleLoader() {
   }, [currentArticle]);
 
   // Helper function to update word stats - now saves directly to database
-  const updateWordStats = async (word: string, wasCorrect: boolean) => {
+  const updateWordStats = async (word: string, wasCorrect: boolean, translation?: string) => {
     if (!user) {
       console.warn('No user found, cannot update word stats');
       return;
@@ -218,7 +218,8 @@ export default function ArticleLoader() {
               tokenText,
               currentToken.lemma,
               currentToken.pos,
-              getSentenceContext(state.tokenizationResult.text, state.tokenizationResult.sentences || [], currentToken)
+              getSentenceContext(state.tokenizationResult.text, state.tokenizationResult.sentences || [], currentToken),
+              translation
             );
             
             if (!mistakeResult.success) {

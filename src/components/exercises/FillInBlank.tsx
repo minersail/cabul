@@ -74,7 +74,7 @@ export default function FillInBlank({ exercise, onComplete }: FillInBlankProps) 
                 type="text"
                 value={userAnswer}
                 onChange={(e) => setUserAnswer(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyUp={handleKeyPress}
                 placeholder="___"
                 className="inline-block w-32 px-2 py-1 text-center border-b-2 border-blue-500 bg-transparent focus:outline-none focus:border-blue-700"
                 autoFocus

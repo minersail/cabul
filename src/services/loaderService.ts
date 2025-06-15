@@ -32,6 +32,16 @@ export async function tokenizeText(text: string): Promise<TokenizationResponse> 
     console.log("Tokenization result:", data);
 
     if (!response.ok) {
+      // Handle 503 Service Unavailable specifically (model loading)
+      if (response.status === 503) {
+        return {
+          text: text,
+          language: 'unknown',
+          tokens: [],
+          error: 'The tokenization service is currently loading. Please wait a moment and try again.'
+        };
+      }
+      
       throw new Error(data.error || 'Failed to tokenize content (server response not OK)');
     }
 

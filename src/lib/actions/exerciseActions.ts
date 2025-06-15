@@ -60,13 +60,7 @@ export async function generateExerciseWords(profileId: string): Promise<{
     include: {
       lemmaRef: {
         select: {
-          tokens: {
-            select: {
-              text: true,
-              pos: true,
-            },
-            take: 1, // Just get one token for the lemma
-          }
+          lemma: true,
         }
       }
     }
@@ -96,13 +90,13 @@ export async function generateExerciseWords(profileId: string): Promise<{
   const vocabWithFrequency = userVocabWithFrequency
     .map(item => {
       const frequency = frequencyMap.get(item.lemma);
-      const token = item.lemmaRef.tokens[0];
+      const text = item.lemmaRef.lemma;
       
-      if (!frequency || !token) return null;
+      if (!frequency || !text) return null;
       
       return {
         lemma: item.lemma,
-        text: token.text,
+        text: text,
         pos_cgram: frequency.pos_cgram,
         frequency: frequency.frequency,
         seen: item.seen,
@@ -134,18 +128,17 @@ export async function generateExerciseWords(profileId: string): Promise<{
       const mistake = await prisma.mistake.findFirst({
         where: {
           profileId: profileId,
-          tokenRef: {
-            lemma: lemma
-          }
+          lemma: lemma
         },
         select: {
-          sentence: true
+          sentence: true,
+          translation: true,
         }
       });
       
       // For now, we'll need to get translations from an external service
       // This is a placeholder - you'll need to implement translation fetching
-      const translation = await getTranslationForWord(vocab.text);
+      const translation = mistake?.translation || await getTranslationForWord(vocab.text);
       
       return {
         lemma,

@@ -45,4 +45,13 @@ When adding dates to the README, please ensure they are accurate.
 - Use Prisma for all database operations, implemented as server actions
 - Use the useAuth() hook for operations involving the user
 - Maintain TypeScript strict mode
-- Follow existing error handling patterns 
+- Follow existing error handling patterns
+
+## Database Commands
+**CRITICAL**: Always prefix Prisma commands with `dotenv -e .env.local --` to load environment variables:
+- `dotenv -e .env.local -- npx prisma db push`
+- `dotenv -e .env.local -- npx prisma generate`
+- `dotenv -e .env.local -- npx prisma studio`
+- `dotenv -e .env.local -- npx prisma migrate dev`
+
+Never run bare Prisma commands without the dotenv prefix in this project. Also note that 'npx prisma db push' runs 'npx prisma generate', so it is not necessary to manually run both.

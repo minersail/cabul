@@ -16,12 +16,14 @@ export default function WordTranslation({ exercise, onComplete }: WordTranslatio
   const handleSubmit = () => {
     if (!userAnswer.trim() || showResult) return;
 
-    const correctAnswer = exercise.direction === 'fr_to_en' 
-      ? exercise.word.translation 
-      : exercise.word.text;
+    const correctAnswers = exercise.direction === 'fr_to_en' 
+      ? exercise.word.translation?.split('/').map(t => t.trim()) || []
+      : [exercise.word.text];
     
-    // Simple comparison - could be enhanced with fuzzy matching
-    const isCorrect = userAnswer.trim().toLowerCase() === correctAnswer?.toLowerCase();
+    // Check if user answer matches any of the correct answers
+    const isCorrect = correctAnswers.some(answer => 
+      userAnswer.trim().toLowerCase() === answer.toLowerCase()
+    );
     const timeSpent = Date.now() - startTime;
 
     setShowResult(true);
@@ -48,11 +50,13 @@ export default function WordTranslation({ exercise, onComplete }: WordTranslatio
     ? exercise.word.text 
     : exercise.word.translation;
   
-  const correctAnswer = exercise.direction === 'fr_to_en' 
-    ? exercise.word.translation 
-    : exercise.word.text;
+  const correctAnswers = exercise.direction === 'fr_to_en' 
+    ? exercise.word.translation?.split('/').map(t => t.trim()) || []
+    : [exercise.word.text];
 
-  const isCorrect = userAnswer.trim().toLowerCase() === correctAnswer?.toLowerCase();
+  const isCorrect = correctAnswers.some(answer => 
+    userAnswer.trim().toLowerCase() === answer.toLowerCase()
+  );
 
   return (
     <div className="space-y-6">
@@ -123,7 +127,8 @@ export default function WordTranslation({ exercise, onComplete }: WordTranslatio
           </div>
           {!isCorrect && (
             <div className="text-gray-600 mb-2">
-              The correct answer was: <strong>{correctAnswer}</strong>
+              The correct answer{correctAnswers.length > 1 ? 's were' : ' was'}: 
+              <strong> {correctAnswers.join(' / ')}</strong>
             </div>
           )}
           <div className="text-sm text-gray-500">

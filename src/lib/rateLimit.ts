@@ -68,8 +68,8 @@ const endpointRateLimits: Record<string, RateLimitType> = {
   // Resource intensive endpoints (web scraping)
   '/api/scrape/lemonde': 'resource-intensive',
 
-  // Moderate endpoints (DeepL)
-  '/api/translate': 'moderate',
+  // (DeepL)
+  '/api/translate': 'general',
   
   // External API endpoints
   '/api/scrape/reddit': 'external-api',
