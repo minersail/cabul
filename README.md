@@ -184,6 +184,7 @@ npx prisma generate  # Regenerate Prisma client
 - **Visual States**: Current word, learned words, unlearned words, flash feedback
 
 ## Recent Changes  
+- 2025-06-15: **HOOK ARCHITECTURE REFACTOR**: Extracted `useOptionsConfig` and `useArticleCache` custom hooks from ArticleLoader component for better separation of concerns, improved null-safety handling for user config loading to prevent unnecessary API calls during initialization
 - 2025-06-13: **VOCABULARY EXERCISE SYSTEM**: Implemented comprehensive practice system with intelligent word selection algorithm prioritizing frequency and user performance, spaced repetition based on practice intervals, multiple exercise types (multiple choice, word translation, fill-in-blank, matching), and detailed progress tracking
 - 2025-06-13: **DATABASE SCHEMA EXPANSION**: Added UserMetadata table for practice tracking, WordFrequency table for Lexique dataset integration, and lastPracticed field to Lexicon for spaced repetition
 - 2025-06-13: **EXERCISE COMPONENTS**: Created modular React components for different exercise types with real-time feedback, progress tracking, and session completion analytics

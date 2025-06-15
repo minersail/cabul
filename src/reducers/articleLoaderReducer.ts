@@ -17,8 +17,8 @@ export interface UIState {
   saveMessage: Message;
 }
 
-export interface ArticleCache<ArticleType extends Article> {
-  articles: ArticleType[];
+export interface ArticleCache<Article> {
+  articles: Article[];
   currentIndex: number;
   hasLoadedFromDatabase: boolean;
 }
@@ -36,10 +36,8 @@ export interface ArticleLoaderState {
 
 export type ArticleLoaderAction =
   | { type: 'START_LOADING' }
-  | { type: 'REDDIT_LOADED'; payload: { posts: RedditPost[] } }
-  | { type: 'LEMONDE_LOADED'; payload: { article: LeMondeArticle } }
-  | { type: 'SCRIPTSLUG_LOADED'; payload: { scene: ScriptSlugScene } }
-  | { type: 'DATABASE_ARTICLES_LOADED'; payload: { articles: RedditPost[] | LeMondeArticle[] | ScriptSlugScene[]; source: ArticleSource } }
+  | { type: 'API_LOADED'; payload: { source: ArticleSource, articles: Article[] } }
+  | { type: 'DATABASE_LOADED'; payload: { articles: RedditPost[] | LeMondeArticle[] | ScriptSlugScene[]; source: ArticleSource } }
   | { type: 'LOAD_ERROR'; payload: { error: string } }
   | { type: 'START_TOKENIZING' }
   | { type: 'TOKENIZED'; payload: { result: TokenizationResponse } }
@@ -72,7 +70,6 @@ export function articleLoaderReducer(
   state: ArticleLoaderState, 
   action: ArticleLoaderAction
 ): ArticleLoaderState {
-  console.log(action);
   switch (action.type) {
     case 'START_LOADING':
       return {
@@ -84,58 +81,28 @@ export function articleLoaderReducer(
         }
       };
 
-    case 'REDDIT_LOADED':
-      return {
-        ...state,
-        articles: {
-          ...state.articles,
-          redditCache: {
-            ...state.articles.redditCache,
-            articles: [...action.payload.posts, ...state.articles.redditCache.articles],
+    case 'API_LOADED':
+      {
+        const [currentCache, cacheKey] = getCache(state, action.payload.source);
+        
+        return {
+          ...state,
+          articles: {
+            ...state.articles,
+            [cacheKey]: {
+              ...currentCache,
+              articles: [...action.payload.articles, ...currentCache.articles]
+            }
           },
-        },
-        uiState: {
-          ...state.uiState,
-          isLoading: false,
-          loadMessage: { message: "", error: false }
-        }
-      };
+          uiState: {
+            ...state.uiState,
+            isLoading: false,
+            loadMessage: { message: "", error: false }
+          }
+        };
+      }
 
-    case 'LEMONDE_LOADED':
-      return {
-        ...state,
-        articles: {
-          ...state.articles,
-          leMondeCache: {
-            ...state.articles.leMondeCache,
-            articles: [action.payload.article, ...state.articles.leMondeCache.articles],
-          },
-        },
-        uiState: {
-          ...state.uiState,
-          isLoading: false,
-          loadMessage: { message: "", error: false }
-        }
-      };
-
-    case 'SCRIPTSLUG_LOADED':
-      return {
-        ...state,
-        articles: {
-          ...state.articles,
-          scriptSlugCache: {
-            ...state.articles.scriptSlugCache,
-            articles: [action.payload.scene, ...state.articles.scriptSlugCache.articles],
-          },
-        },
-        uiState: {
-          ...state.uiState,
-          isLoading: false,
-          loadMessage: { message: "", error: false }
-        }
-      };
-
-    case 'DATABASE_ARTICLES_LOADED':
+    case 'DATABASE_LOADED':
       if (action.payload.source === 'reddit') {
         return {
           ...state,
@@ -289,9 +256,12 @@ export function articleLoaderReducer(
       const articleSource = action.payload.articleSource;
       const [currentCache, cacheKey] = getCache(state, articleSource);
 
+      if (currentCache.articles.length === 1) {
+        return state;
+      }
+
       const newIndex = (currentCache.currentIndex + 1) % currentCache.articles.length;
 
-      console.log(newIndex);
       return {
         ...state,
         articles: {

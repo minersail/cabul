@@ -8,14 +8,14 @@ export interface ClientUserConfig {
   autoScroll: boolean;
 }
 
-const defaultConfig: ClientUserConfig = {
+const NEW_USER_CONFIG: ClientUserConfig = {
   articleSource: 'reddit',
   autoScroll: false
 }
 
 export function useUserConfig() {
   const { user } = useAuth()
-  const [config, setConfig] = useState<ClientUserConfig>(defaultConfig)
+  const [config, setConfig] = useState<ClientUserConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,10 +35,16 @@ export function useUserConfig() {
       })
       
       if (result.success) {
-        setConfig(prev => ({
-          ...prev,
-          ...newConfig
-        }))
+        setConfig(prev => {
+          if (prev) {
+            return {
+              ...prev,
+              ...newConfig
+            } as ClientUserConfig;
+          } else {
+            return newConfig as ClientUserConfig;
+          }
+        });
       } else {
         setError(result.error)
         console.error('Failed to save user config:', result.error)
@@ -52,7 +58,7 @@ export function useUserConfig() {
   // Load user config from database
   const loadConfig = useCallback(async () => {
     if (!user?.id) {
-      setConfig(defaultConfig)
+      setConfig(null)
       setLoading(false)
       return
     }
@@ -71,23 +77,23 @@ export function useUserConfig() {
           })
         } else {
           // No config found, use defaults and create one
-          setConfig(defaultConfig)
+          setConfig(NEW_USER_CONFIG)
           // Create default config in background without waiting
           upsertUserConfig(user.id, {
-            articleSource: defaultConfig.articleSource,
-            autoScroll: defaultConfig.autoScroll
+            articleSource: NEW_USER_CONFIG.articleSource,
+            autoScroll: NEW_USER_CONFIG.autoScroll
           }).catch(err => {
             console.error('Failed to create default user config:', err)
           })
         }
       } else {
         setError(result.error)
-        setConfig(defaultConfig)
+        setConfig(null)
       }
     } catch (err) {
       console.error('Error loading user config:', err)
       setError('Failed to load user configuration')
-      setConfig(defaultConfig)
+      setConfig(null)
     } finally {
       setLoading(false)
     }
